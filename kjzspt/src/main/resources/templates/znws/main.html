@@ -1,0 +1,2948 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <th:block th:include="include :: header('智能问数')"/>
+    <link rel="stylesheet" href="/znws/css/znws.css">
+    <link rel="stylesheet" href="/znws/css/all.min.css">
+    <script src="/znws/js/marked.min.js"></script>
+    <script src="/znws/js/echarts.min.js"></script>
+    <style>
+
+        .db-detail-table details {
+            border: 1px solid #f1f5f9;
+            border-radius: 6px;
+            padding: 8px 12px;
+            background: #fafafa;
+        }
+        .db-detail-table summary {
+            cursor: pointer;
+            color: #3b82f6;
+            font-size: 13px;
+            font-weight: 500;
+            outline: none;
+        }
+        .db-detail-table table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .db-detail-table th, .db-detail-table td {
+            border: 1px solid #e2e8f0;
+            padding: 6px 8px;
+            text-align: left;
+        }
+        /* =============================
+            数据分析长条面板
+            ============================ */
+
+        .tool-tag.disabled-tag {
+            color: #94a3b8 !important;
+            background-color: #f1f5f9 !important;
+            cursor: not-allowed !important;
+            opacity: 0.7;
+        }
+
+        /* 长条按钮默认状态 */
+        .db-analyze-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            margin-bottom: 8px;
+        }
+        .db-analyze-bar:hover {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .db-analyze-bar .bar-left {
+            font-size: 15px;
+            font-weight: 600;
+            color: #334155;
+        }
+        .db-analyze-bar .bar-right {
+            font-size: 14px;
+            color: #3b82f6;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 正在加载中的状态 */
+        .db-analyze-bar.loading {
+            cursor: wait;
+            background-color: #f8fafc;
+            pointer-events: none;
+        }
+        .db-analyze-bar.loading .bar-right {
+            color: #64748b;
+        }
+
+        /* 🌟 分析完成状态*/
+        .db-analyze-bar.completed {
+            background-color: #f8f5ff;
+            border-color: #ede9fe;
+            cursor: default;
+            pointer-events: none;
+        }
+        .db-analyze-bar.completed .bar-left {
+            color: #4c1d95;
+        }
+        .db-analyze-bar.completed .bar-right {
+            color: #8b5cf6;
+            font-weight: 600;
+        }
+
+        /* 数据分析结果外框 */
+        .db-analysis-result {
+            display: none;
+        }
+        .db-analysis-result.show {
+            display: block;
+            background: #ffffff;
+            border: 1px solid #ede9fe;
+            border-radius: 8px;
+            padding: 18px;
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.7;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.03);
+            animation: fadeInDown 0.4s ease forwards;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 推荐气泡 */
+        .recommend-bubbles-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+            margin-bottom: 20px;
+            align-items: flex-start;
+        }
+        .recommend-bubble {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f4f4f5;
+            color: #3f3f46;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            border: 1px solid transparent;
+        }
+        .recommend-bubble:hover {
+            background: #e4e4e7;
+            border: 1px solid #d4d4d8;
+            transform: translateX(4px);
+        }
+        .recommend-bubble i {
+            font-size: 13px;
+            color: #a1a1aa;
+            margin-left: 14px;
+            transition: transform 0.2s ease;
+        }
+        .recommend-bubble:hover i {
+            color: #52525b;
+            transform: translateX(3px);
+        }
+
+        .input-row {
+            padding: 16px 12px 16px 16px !important;
+            -webkit-user-select: none; /* Safari/Chrome */
+            -moz-user-select: none;    /* Firefox */
+            -ms-user-select: none;     /* IE/Edge */
+            user-select: none;         /* Standard */
+        }
+        .auto-expand-textarea {
+            padding: 0 !important;
+            line-height: 1.6 !important;
+            cursor: text;
+            -webkit-user-select: text !important;
+            user-select: text !important;
+        }
+        /* =========================================================
+            高级看板样式
+            ========================================================= */
+        .dashboard-card {
+            display: block !important;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 24px;
+            background: #ffffff;
+            box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05);
+            margin-top: 10px;
+        }
+
+        .db-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .db-title { font-size: 18px; font-weight: 600; color: #0f172a; }
+        .db-date {
+            font-size: 13px; font-weight: 500; color: #64748b;
+            background: #f1f5f9; padding: 4px 12px; border-radius: 20px;
+        }
+
+        .db-kpi-row {
+            display: flex;
+            flex-direction: row !important;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .db-kpi-box {
+            flex: 1;
+            border-radius: 12px;
+            padding: 22px 24px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.015);
+            box-sizing: border-box;
+            border: 1px solid #eaeff4;
+            transition: transform 0.2s ease;
+        }
+        .db-kpi-box:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+
+        /* (左卡片) - 顶部纯白，底部微灰蓝 */
+        .db-card-blue {
+            background: linear-gradient(180deg, #ffffff 0%, #f4f7fa 100%);
+        }
+
+        /* (右卡片) - 顶部纯白，底部微灰绿 */
+        .db-card-green {
+            background: linear-gradient(180deg, #ffffff 0%, #f4faf6 100%);
+        }
+
+        .db-kpi-label { font-size: 15px; font-weight: 600; color: #475569; margin-bottom: 12px; }
+        .db-kpi-value {
+            font-size: 32px; font-weight: 700; color: #0f172a;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin-bottom: 16px; letter-spacing: -1px;
+        }
+
+        .db-kpi-compare {
+            font-size: 13px; color: #64748b;
+            display: flex; gap: 18px; flex-wrap: wrap; line-height: 1.6;
+        }
+        .db-chart-title {
+            font-size: 15px; font-weight: 600; color: #334155;
+            margin-bottom: 12px; margin-top: 20px;
+            padding-left: 4px; border-left: 4px solid #3b82f6;
+        }
+    </style>
+
+</head>
+<body>
+<input type="hidden" id="selectedFileInfo" value="">
+
+<div class="ai-chat-card" style="position: relative;">
+    <!-- 收起/展开按钮 -->
+    <div class="sidebar-toggle-btn" id="sidebarToggle">
+        <i class="layui-icon layui-icon-shrink-right"></i>
+    </div>
+
+    <!-- 左侧边栏 -->
+    <div class="chat-sidebar">
+        <div class="new-chat-btn" id="newChatBtn">
+            <div class="chat-title"></div>
+            <button class="layui-btn layui-btn-fluid btn-background"></button>
+        </div>
+        <div class="history-header">
+            <span class="quick-title-text">历史对话</span>
+        </div>
+        <div class="history-list" id="historyList"></div>
+
+    </div>
+
+    <!-- 右侧主界面 - 改造输入区域 -->
+    <div class="chat-main">
+
+        <div class="message-container" id="messageContainer">
+            <div class="welcome-screen" id="welcomeScreen">
+                <img src="/znws/images/new-conversation.png" class="welcome-center-img" draggable="false">
+            </div>
+            <div class="messages-list" id="messagesList"></div>
+        </div>
+
+        <!-- 全新输入区域布局 -->
+        <div class="input-area" id="inputArea">
+            <!-- 新增文件预览区域 -->
+            <div class="files-preview" id="filesPreview" style="display: none;">
+                <div class="files-list" id="filesList"></div>
+            </div>
+            <div class="input-row" style="padding-bottom: 8px !important;">
+                <div class="textarea-wrapper" style="width: 100%;">
+                    <textarea class="auto-expand-textarea" id="messageInput"
+                              th:placeholder="${isAdmin == true ? '给AI智数助手发送消息' : '请点击右侧“选择文件”按钮上传文件'}"
+                              rows="1"
+                              th:disabled="${isAdmin != true}"></textarea>
+                </div>
+            </div>
+
+            <div class="action-tools-container" style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px 16px 16px; width: 100%; box-sizing: border-box;">
+
+                <div class="left-tools" style="display: flex; gap: 8px;">
+                <span th:class="${isAdmin == true ? 'tool-tag active' : 'tool-tag'}" id="znwsBtn" th:if="${isAdmin == true}">
+                <i class="layui-icon layui-icon-chat"></i> 智能问数
+                </span>
+
+                <span th:class="${isAdmin == true ? 'tool-tag' : 'tool-tag active'}" id="znfxBtn">
+                <i class="layui-icon layui-icon-search"></i> 智能分析
+                </span>
+
+                </div>
+
+                <div class="right-file-tools" style="display: flex; align-items: center; gap: 8px;">
+                    <div id="znwsTools" th:style="${isAdmin == true ? 'display: flex;' : 'display: none;'}">
+                        <span class="file-action-btn" id="guideBtn" style="margin-right: 8px;"><i class="layui-icon layui-icon-help"></i> 提问指南</span>
+                        <span class="file-action-btn" id="metricDirBtn"><i class="layui-icon layui-icon-list"></i> 指标目录</span>
+                    </div>
+
+                    <input type="file" id="promptFileInput" accept=".md,.yaml,.yml,.txt" style="display:none;">
+
+                    <div id="fileTools" th:style="${isAdmin == true ? 'display: none; gap: 8px;' : 'display: flex; gap: 8px;'}">
+                        <input type="hidden" id="admin_check_tag" th:value="${isAdmin}">
+                        <span class="file-action-btn" id="promptConfigBtn" th:if="${isAdmin == true}">
+                        <i class="layui-icon layui-icon-set"></i> 提示词配置
+                        </span>
+
+                        <div class="dropdown-menu" id="promptDropdownMenu" style="display: none;">
+                            <div class="menu-item" data-target="local">
+                                <div style="display: table-row">
+                                    <div>区/分公司提示词</div>
+                                    <div class="item-desc">全疆及本地网 PPT 解析</div>
+                                </div>
+                            </div>
+
+                            <div class="menu-item" data-target="county">
+                                <div style="display: table-row">
+                                    <div>县分提示词</div>
+                                    <div class="item-desc">县分公司 PPT 解析</div>
+                                </div>
+                            </div>
+
+                        </div>
+                        <span class="file-action-btn" id="pptAnalysisBtn"><i class="layui-icon layui-icon-chart"></i> PPT分析</span>
+                        <span class="file-action-btn" id="selectFileBtn"><i class="layui-icon layui-icon-upload"></i> 选择文件</span>
+                    </div>
+
+                    <div class="send-button-wrapper" style="position: relative; right: auto; bottom: auto; margin-left: 8px; width: auto; height: auto;">
+                        <button class="action-btn primary" id="sendBtn"></button>
+                    </div>
+                </div>
+
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 下拉菜单模板 -->
+<div class="dropdown-menu" id="dropdownMenu">
+    <div class="menu-item" id="menuPin"><i class="layui-icon layui-icon-up" id="pinIcon"></i><span id="pinText">置顶</span></div>
+    <div class="menu-item delete-item" id="menuDelete"><i class="layui-icon layui-icon-delete"></i><span>删除</span></div>
+</div>
+<!-- PPT分析下拉菜单 -->
+<div class="dropdown-menu" id="pptDropdownMenu" style="display: none;">
+    <!-- 选项将动态生成 -->
+    <div class="menu-item" data-value="1">
+        <div style="display: table-row">
+            <div >基础分析</div>
+            <div class="item-desc">对文档核心数据进行描述与汇总</div>
+        </div>
+    </div>
+    <div class="menu-item disabled" data-value="2" title="功能开发中，敬请期待">
+        <div style="display: table-row">
+            <div>深度分析 <span style="font-size: 10px; background: #f1f5f9; color: #94a3b8; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle;">开发中</span></div>
+            <div class="item-desc">可提供深度洞察与策略建议</div>
+        </div>
+    </div>
+</div>
+
+<th:block th:include="include :: footer"/>
+<script>
+
+    var isAdminStr = document.getElementById('admin_check_tag').value;
+    var isAdmin = (isAdminStr === 'true');
+
+    // 根据权限初始化业务变量
+    var isZnws = isAdmin;
+    var isZnfx = !isAdmin;
+
+    var promptFileType = "";
+
+    var currentChatId = null;
+
+
+    window.isFetchingRecommend = false;
+
+        function fetchAndRenderRecommendations(wrapper) {
+            if (!isAdmin) return;
+
+            // 如果屏幕上已经存在推荐问题了，进行拦截，避免生出 6 个
+            if ($('.recommend-bubbles-wrapper').length > 0) {
+                console.log("拦截：屏幕上已存在推荐问题");
+                return;
+            }
+
+            // 如果前一个请求还没回来，又来了一个，拦截
+            if (window.isFetchingRecommend) {
+                console.log("拦截：正在拉取推荐中，防止并发重复调用");
+                return;
+            }
+
+            window.isFetchingRecommend = true;
+
+            // 每次请求前，确保清理掉可能残留的旧气泡
+            $('.recommend-bubbles-wrapper').remove();
+
+            $.ajax({
+                url: "/service/recommendations",
+                type: 'get',
+                timeout: 6000,
+                success: function (res) {
+                    if (res && res.success && res.data && res.data.length > 0) {
+                        var bubblesHtml = '<div class="recommend-bubbles-wrapper step-fade-in">';
+                        res.data.forEach(function (q) {
+                            var safeQ = String(q).replace(/[&<>"]/g, function (m) {
+                                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[m];
+                            });
+
+                            bubblesHtml += '<div class="recommend-bubble" onclick="fillInputAndSend(this)">' +
+                                '<span>' + safeQ + '</span>' +
+                                '<i class="layui-icon layui-icon-right"></i>' +
+                                '</div>';
+                        });
+                        bubblesHtml += '</div>';
+
+                        var container = document.getElementById('messageContainer');
+                        var isAtBottom = false;
+                        if (container) {
+                            // 滚动条到底部的距离小于 100px 时，认为用户在底部
+                            isAtBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 100;
+                        }
+
+                        // 插入到当前最新的内容容器中
+                        wrapper.insertAdjacentHTML('beforeend', bubblesHtml);
+
+                        if (container && isAtBottom) {
+                            container.scrollTo({
+                                top: container.scrollHeight,
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                },
+                complete: function () {
+                    window.isFetchingRecommend = false;
+                }
+            });
+        }
+
+    window.fillInputAndSend = function(elem) {
+        var text = $(elem).find('span').text();
+        if(text) {
+            $('#messageInput').val(text);
+            if(typeof autoExpandTextarea === 'function') autoExpandTextarea();
+            $('#sendBtn').click();
+        }
+    };
+
+    // 点击输入框外围的空白区域，自动把光标吸附到文字里
+    $('.input-row').on('click', function(e) {
+        if (e.target.id !== 'sendBtn') {
+            $('#messageInput').focus();
+        }
+    });
+
+
+    // 1. 智能格式化时间 (兼容各种时间格式)
+    function formatTime(val) {
+        var pad = (n) => String(n || 0).padStart(2, '0');
+
+        //  传进来的是空，或者是 JavaScript 的 Date 对象（发新消息时）
+        if (!val || val instanceof Date) {
+            var d = val ? val : new Date();
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+        }
+
+        // Java 后端传过来的 LocalDateTime 数组格式 [2026, 4, 8, 11, 1, 54] (查历史记录时)
+        if (Array.isArray(val)) {
+            return val[0] + '-' + pad(val[1]) + '-' + pad(val[2]) + ' ' + pad(val[3]) + ':' + pad(val[4]) + ':' + pad(val[5]);
+        }
+
+        // 场景 C: 标准的带 T 字符串 "2026-04-08T11:01:54.000"
+        var strVal = String(val);
+        if (strVal.includes('-') && strVal.includes(':')) {
+            return strVal.replace('T', ' ').substring(0, 19);
+        }
+
+        return strVal;
+    }
+
+    // 2. 刷新按钮：重新一键提问
+    window.retryQuestion = function(q) {
+        if(!q) return;
+        $('#messageInput').val(q);
+        $('#sendBtn').click();
+    };
+
+    // 3. 点击数据分析：提取中文数据发给 Dify 工作流，并在前端生成动态气泡
+    window.triggerHiddenAnalysis = function(btn) {
+        var $bubble = $(btn).closest('.bubble');
+        var $textarea = $bubble.find('.hidden-dify-data');
+        var $queryTextarea = $bubble.find('.hidden-query-text');
+
+        if ($textarea.length === 0 || !$textarea.val()) {
+            layer.msg('当前数据不支持深度分析哦', {icon: 0});
+            return;
+        }
+
+        var difyDataStr = $textarea.val();
+
+        var queryText = "请帮我分析这份数据";
+        if ($queryTextarea.length > 0 && $queryTextarea.val()) {
+            queryText = $queryTextarea.val(); // 直接用报文里的
+        } else {
+            var $userMsg = $(btn).closest('.message.ai').prev('.message.user');
+            if ($userMsg.length > 0) {
+                queryText = $userMsg.text().trim();
+            }
+        }
+
+        var safeEscape = function(str) {
+            return String(str || "").replace(/[&<>"]/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m];
+            });
+        };
+
+        // =================================
+        // 1：模拟用户说了一句话
+        // =================================
+        var textStr = "请结合当前数据，深度分析一下“" + queryText + "”。";
+        var userMsgDiv = document.createElement('div');
+        userMsgDiv.className = 'message user';
+        userMsgDiv.innerHTML = '<div class="avatar"><img src="/znws/images/user-icon.png" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div><div class="bubble">' + safeEscape(textStr) + '</div>';
+        document.getElementById('messagesList').appendChild(userMsgDiv);
+
+        // =================================
+        // 2：AI 出现等待气泡
+        // =================================
+        var aiMsgDiv = document.createElement('div');
+        aiMsgDiv.className = 'message ai';
+        aiMsgDiv.innerHTML = '<div class="avatar"><img src="' + AI_ICON_BASE64 + '" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div>' +
+            '<div class="bubble markdown-body step-fade-in"><span style="color:#64748b;">正在调用业务专家模型深度分析数据，请稍后<span class="animated-dots">...</span></span></div>';
+        document.getElementById('messagesList').appendChild(aiMsgDiv);
+
+        var container = document.getElementById('messageContainer');
+        if (container) container.scrollTop = container.scrollHeight;
+
+        var chatId = null;
+        try { if (typeof currentChatId !== 'undefined') chatId = currentChatId; } catch(e) {}
+
+        // =================================
+        // 发送 Ajax：连接后端专属接口
+        // =================================
+        $.ajax({
+            url: "/service/analyzeDifyData",
+            type: 'post',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                sessionId: chatId,
+                query: queryText,
+                data: difyDataStr
+            }),
+            success: function(res) {
+                if (res.success) {
+                    var analysisResult = res.data || res.msg || "（分析完成，但未获取到文本内容）";
+
+                    var parsedHtml = marked.parse(analysisResult);
+                    $(aiMsgDiv).find('.bubble').html(parsedHtml);
+                } else {
+                    $(aiMsgDiv).find('.bubble').html("<span style='color:red;'>分析失败：" + (res.msg || "未知错误") + "</span>");
+                }
+                container.scrollTop = container.scrollHeight;
+            },
+            error: function() {
+                $(aiMsgDiv).find('.bubble').html("<span style='color:red;'>网络请求异常，请重试</span>");
+            }
+        });
+    };
+    // ==========================================
+    // 问数分析按钮
+    // ==========================================
+    window.triggerDataAnalysis = function(rawData) {
+        // 构建让 AI 分析的提示词
+        var promptText = "请帮我深度分析以下业务数据并给出见解：" + rawData;
+
+        // 自动将分析指令填入输入框
+        $('#messageInput').val(promptText);
+
+        if(typeof autoExpandTextarea === 'function') autoExpandTextarea();
+        $('#sendBtn').click();
+    };
+
+    // ==========================================
+    // 字段名中英文映射字典
+    // ==========================================
+    var fieldMapping = {
+        "hx_latn_name": "分公司",
+        "hx_area_name": "县分",
+        "hx_region_name": "支局",
+        "x_hx5_bp_name": "网格"
+    };
+
+    var compiledRegExps = [];
+    for (var key in fieldMapping) {
+        compiledRegExps.push({
+            reg: new RegExp(key, "gi"),
+            val: fieldMapping[key]
+        });
+    }
+
+    function translateText(text) {
+        if (!text) return text;
+        var newText = text;
+        for (var i = 0; i < compiledRegExps.length; i++) {
+            newText = newText.replace(compiledRegExps[i].reg, compiledRegExps[i].val);
+        }
+        return newText;
+    }
+
+    const AI_ICON_BASE64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA+ZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMTQyIDc5LjE2MDkyNCwgMjAxNy8wNy8xMy0wMTowNjozOSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiB4bWxuczpzdFJlZj0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL3NUeXBlL1Jlc291cmNlUmVmIyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgQ0MgKFdpbmRvd3MpIiB4bXA6Q3JlYXRlRGF0ZT0iMjAyNi0wMi0yOFQxNzo1NTo1MyswODowMCIgeG1wOk1vZGlmeURhdGU9IjIwMjYtMDItMjhUMTg6MDI6NDMrMDg6MDAiIHhtcDpNZXRhZGF0YURhdGU9IjIwMjYtMDItMjhUMTg6MDI6NDMrMDg6MDAiIGRjOmZvcm1hdD0iaW1hZ2UvcG5nIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjlGOUVEMkU4MTQ4QzExRjFCODU4QzREMTcwNEEzMEQ0IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjlGOUVEMkU5MTQ4QzExRjFCODU4QzREMTcwNEEzMEQ0Ij4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6OUY5RUQyRTYxNDhDMTFGMUI4NThDNEQxNzA0QTMwRDQiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6OUY5RUQyRTcxNDhDMTFGMUI4NThDNEQxNzA0QTMwRDQiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz6s6QHRAAADH0lEQVR42sRXXUhUQRS+O6spxWZEBNGbz5FZBpJCqAuGGJkREVFkD9E/UWBhkIT0QxEV1goVFWiRRKEklGj4kISQ9CMV+pT9SFRGhQXR7p7bN8u527R7Z/euuzcHPs69O9+cc/acmTPnekzTNKZyZKVCvviCKiHagRnAb+Ar4AVmAdnAB6Bk6wLx1hUHyDRyIfKUtdNjKPNS1elJNQWBIZoJMQ2YC7wERoBlMhI7ForPqabAk84eaH5OcvHg7gKxdLI6bB04+4zyIfKVcMeSwsBs4ArwDtjFe8ETwxPMHZeR2rtIfErowOmnVAhxnkPqxrgO7NxfKL7HOXDyCZVCPOTfXwMDwITF0ygM8ZxXM29yFOYAVbx3RoGi+sXiS/QUHBskeaz6eFFTQ5E4nOm/Dhs+iA6gHOgESq0cGWHT2A5kAT1uGJcDeieACtgYB0qaHlN51IEQGdWAlCfcrnywcYFtlURTEDIjBUSO97qFhwZog8z30WLRloAjK+IaYAy8+7YOmMYwP+ZFIxAkgwAphd2i+kd0CnNtQCueG3UOYL4HuAzcA2+1hpPDtgw1BcRh8WrCZqVIwlbxvn7KxtwShVej0SV4nv6mgJLmbUJ5/aXhSOd/AD7liNrx4i+jYJJqjHmf8pqj4YT5llSroB0vrlQaSth0EehUOO12nJblIoi5AYV3WxcB1ZajFFwqEwfrHtAbeQquVohAglRVQ2yS1Q68LscpCDm4EKGwxXre2EvyIipWwizz3dvqF7JBOZdwP5l2e4BSKybgj3B9V0cr//tka+MdCFOknTK4zUo6wJfXsJ8vIg9HoNvhWsuGV02BdbRynSi5tUIcmHQpNqN/NqiegiHemf7/cBesZVuj6m0YAKRsrOqi+W4Zh+4a2KhiW13/NCSVd+kGxHrgJ7dY/fws0rBp7Xl5amqBI/xe171SXItryfyddBNinctZaOhdJY5rm9KyjsjHxxaggD0Pp2HMauU+ckSb+2rEcMba8kwMYUzxcPwZVXon0rJv4wJiJgj5N+BMf60Yy6gDyNQeiM0O6a/4o8XdT7NMjD8CDABw+3oJqTbe7AAAAABJRU5ErkJggg=="
+
+    // ==========================================
+    //  AI 内容处理与深度分析逻辑
+    // ==========================================
+
+    function processAiContent(rawContent, sessionId, createTimeStr) {
+        let result = {
+            markdownText: '',
+            showRecommend: true,
+            extraHtml: '',
+            sessionId: sessionId,
+            createTimeStr: createTimeStr || '' // 接收并存储时间戳
+        };
+
+        if (!rawContent || rawContent.trim() === '') {
+            return result;
+        }
+
+        try {
+            let jsonObj = JSON.parse(rawContent);
+
+            if (jsonObj) {
+                let aiType = jsonObj.type ? String(jsonObj.type).toLowerCase().trim() : "";
+
+                if (jsonObj.difyData) {
+                    let safeQuery = String(jsonObj.query || "").replace(/[&<>"]/g, function(m) {
+                        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m];
+                    });
+
+                    result.extraHtml += `<textarea class='hidden-dify-data' style='display:none;' data-sessionid='${sessionId}' data-query='${safeQuery}' data-createtime='${result.createTimeStr}'>${jsonObj.difyData}</textarea>`;
+                }
+                if (aiType === "dashboard") {
+                    let kpi = jsonObj.kpi;
+                    if (kpi) {
+                        let html = '<div class="dashboard-card">';
+
+                        // 头部和双卡片渲染
+                        html += '<div class="db-header">';
+                        html += '  <div class="db-title">' + (kpi.metricName || '指标趋势分析') + '</div>';
+                        html += '  <div class="db-date">' + (kpi.dateRange || '') + '</div>';
+                        html += '</div>';
+
+                        html += '<div class="db-kpi-row">';
+                        // 左卡片
+                        html += '<div class="db-kpi-box db-card-blue">';
+                        html += '<div class="db-kpi-label">当期指标值</div>';
+                        html += '<div class="db-kpi-value">' + kpi.currentVal + '</div>';
+                        html += '<div class="db-kpi-compare">';
+                        html += '<span>同比: ' + (kpi.tongbi || '-') + '</span>';
+                        html += '<span>环比: ' + (kpi.huanbi || '-') + '</span>';
+                        html += '<span>同期: ' + (kpi.lastYearVal || '-') + '</span>';
+                        html += '<span>上期: ' + (kpi.lastMonthVal || '-') + '</span>';
+                        html += '</div></div>';
+
+                        // 右卡片
+                        html += '<div class="db-kpi-box db-card-green">';
+                        html += '<div class="db-kpi-label">本年累计值</div>';
+                        html += '<div class="db-kpi-value">' + kpi.ytdVal + '</div>';
+                        html += '<div class="db-kpi-compare">';
+                        html += '<span>同比: ' + (kpi.ytdTongbi || '-') + '</span>';
+                        html += '<span>环比: - </span>';
+                        html += '<span>同期: ' + (kpi.lastYearYtdVal || '-') + '</span>';
+                        html += '<span>上期: - </span>';
+                        html += '</div></div>';
+                        html += '</div>';
+
+                        // 图表区域
+                        html += '<div style="display: block; width: 100%; clear: both; margin-top: 10px;">';
+                        html += '<div class="db-chart-title">指标趋势</div>';
+                        if (jsonObj.chart) {
+                            let chartContent = typeof jsonObj.chart === 'string' ? jsonObj.chart : JSON.stringify(jsonObj.chart);
+                            chartContent = chartContent.replace(/```(echarts|json)?/gi, '').replace(/```/g, '').trim();
+                            html += '\n\n```echarts\n' + chartContent + '\n```\n\n';
+                        }
+                        html += '</div>';
+
+                        // 查看明细数据表格
+                        if (jsonObj.table) {
+                            html += '<div class="db-detail-table" style="margin-top: 15px;">\n' + jsonObj.table + '\n</div>\n';
+                        }
+
+                        // 可点击触发的智能分析长条
+                        html += '<div class="db-analyze-bar" onclick="triggerInPlaceAnalysis(this)">';
+                        html += '<span class="bar-left">数据分析</span>';
+                        html += '<span class="bar-right"><i class="layui-icon layui-icon-play"></i> 智能生成</span>';
+                        html += '</div>';
+                        html += '<div class="db-analysis-result markdown-body"></div>';
+
+
+
+                        // 时间戳
+                        html += `<div class="db-timestamp" style="text-align: right; color: #64748b; font-size: 12px; margin-top: 15px;">${result.createTimeStr}</div>`;
+                        html += '</div>';
+
+                        result.markdownText += html;
+                        result.isDashboard = true;
+                    }
+                    return result;
+                }
+                // 新增：对比分析面板 (comparison_dashboard) 渲染逻辑
+                if (aiType === "comparison_dashboard") {
+                    let comp = jsonObj.compare;
+                    if (comp && comp.list && comp.list.length === 2) {
+                        let html = '<div class="dashboard-card">';
+
+                        html += '<div class="db-header">';
+                        html += '  <div class="db-title">' + (comp.metricName || '对比分析') + '</div>';
+                        html += '  <div class="db-date">' + (comp.date || '') + '</div>';
+                        html += '</div>';
+
+                        // 格式化数字，加上千分位
+                        const fmt = (num) => new Intl.NumberFormat('en-US').format(num);
+
+                        let c1 = comp.list[0];
+                        let c2 = comp.list[1];
+                        let diff = comp.diff;
+                        let diffSign = diff > 0 ? "+" : "";
+                        let diffIcon = diff > 0 ? "layui-icon-up" : (diff < 0 ? "layui-icon-down" : "layui-icon-subtraction");
+                        let diffColor = diff > 0 ? "#ef4444" : (diff < 0 ? "#10b981" : "#64748b");
+                        let diffBg = diff > 0 ? "#fef2f2" : (diff < 0 ? "#ecfdf5" : "#f1f5f9");
+                        let diffBorder = diff > 0 ? "#fecaca" : (diff < 0 ? "#a7f3d0" : "#cbd5e1");
+
+                        html += '<div style="display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:24px; position:relative;">';
+
+                        // 左卡片
+                        html += '<div style="flex:1; border:1px solid #eaeff4; border-radius:12px; padding:24px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.015); background: linear-gradient(180deg, #ffffff 0%, #f4f7fa 100%);">';
+                        html += '<div style="font-size:15px; color:#64748b; margin-bottom:12px;">' + c1.name + '</div>';
+                        html += '<div style="font-size:28px; font-weight:bold; color:#0f172a; margin-bottom:16px;">' + fmt(c1.current) + '</div>';
+                        html += '<div style="font-size:13px; color:#64748b; line-height:1.8;">累计: ' + fmt(c1.ytd) + '<br>同期: ' + fmt(c1.yoy) + '</div>';
+                        html += '</div>';
+
+                        // 中间 VS 和差值
+                        html += '<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; z-index:10; padding: 0 4px;">';
+                        html += '<div style="width:40px; height:40px; background:#3b82f6; border-radius:50%; color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:900; font-style:italic; box-shadow:0 4px 12px rgba(59,130,246,0.3); margin-bottom:10px;">VS</div>';
+                        html += '<div style="background:'+diffBg+'; color:'+diffColor+'; border:1px solid '+diffBorder+'; padding:4px 10px; border-radius:20px; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:4px; white-space:nowrap;"><i class="layui-icon ' + diffIcon + '"></i> 差值 ' + diffSign + fmt(diff) + '</div>';
+                        html += '</div>';
+
+                        // 右卡片
+                        html += '<div style="flex:1; border:1px solid #eaeff4; border-radius:12px; padding:24px; text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.015); background: linear-gradient(180deg, #ffffff 0%, #f4faf6 100%);">';
+                        html += '<div style="font-size:15px; color:#64748b; margin-bottom:12px;">' + c2.name + '</div>';
+                        html += '<div style="font-size:28px; font-weight:bold; color:#0f172a; margin-bottom:16px;">' + fmt(c2.current) + '</div>';
+                        html += '<div style="font-size:13px; color:#64748b; line-height:1.8;">累计: ' + fmt(c2.ytd) + '<br>同期: ' + fmt(c2.yoy) + '</div>';
+                        html += '</div>';
+
+                        html += '</div>'; // end of VS layout
+
+                        // Echarts 柱状图
+                        if (jsonObj.chart) {
+                            let chartContent = typeof jsonObj.chart === 'string' ? jsonObj.chart : JSON.stringify(jsonObj.chart);
+                            chartContent = chartContent.replace(/```(echarts|json)?/gi, '').replace(/```/g, '').trim();
+                            html += '\n\n```echarts\n' + chartContent + '\n```\n\n';
+                        }
+
+                        // 查看明细表格
+                        if (jsonObj.table) {
+                            html += '<div class="db-detail-table" style="margin-top: 15px;">\n' + jsonObj.table + '\n</div>\n';
+                        }
+
+                        // 数据分析智能生成长条
+                        html += '<div class="db-analyze-bar" onclick="triggerInPlaceAnalysis(this)" style="margin-top: 15px;">';
+                        html += '<span class="bar-left">数据分析</span>';
+                        html += '<span class="bar-right"><i class="layui-icon layui-icon-play"></i> 智能生成</span>';
+                        html += '</div>';
+                        html += '<div class="db-analysis-result markdown-body"></div>';
+
+                        html += `<div class="db-timestamp" style="text-align: right; color: #64748b; font-size: 12px; margin-top: 15px;">${result.createTimeStr}</div>`;
+                        html += '</div>';
+
+                        result.markdownText += html;
+                        result.isDashboard = true;
+                        return result;
+                    }
+                }
+                if (aiType === "analysis") {
+                    let html = "";
+
+                    // 1. 渲染头部文字和按钮
+                    if (jsonObj.text) {
+                        html += jsonObj.text + "\n\n";
+                    }
+
+                    // 2. 渲染图表
+                    if (jsonObj.chart) {
+                        let chartContent = typeof jsonObj.chart === 'string' ? jsonObj.chart : JSON.stringify(jsonObj.chart);
+                        chartContent = chartContent.replace(/```(echarts|json)?/gi, '').replace(/```/g, '').trim();
+                        html += '\n\n```echarts\n' + chartContent + '\n```\n\n';
+                    }
+
+                    // 4. 渲染底部的表格折叠面板
+                    if (jsonObj.table) {
+                        html += '<div class="db-detail-table" style="margin-top: 15px;">\n' + jsonObj.table + '\n</div>\n';
+                    }
+
+                    // 3. 统一使用：可点击触发的智能分析长条
+                    html += '<div class="db-analyze-bar" onclick="triggerInPlaceAnalysis(this)" style="margin-top: 15px;">';
+                    html += '<span class="bar-left">数据分析</span>';
+                    html += '<span class="bar-right"><i class="layui-icon layui-icon-play"></i> 智能生成</span>';
+                    html += '</div>';
+                    html += '<div class="db-analysis-result markdown-body"></div>';
+
+
+
+                    rawContent = html;
+
+                }
+                if (aiType === "normal") {
+                    rawContent = jsonObj.text || "暂无相关业务数据记录";
+                }
+                if (aiType === "indlist") {
+                    rawContent = "💡 **温馨提示**：\n\n" +
+                        "检测到您可能在寻找具体的业务指标列表。为了帮助您获得更精准的查询结果，建议您：\n\n" +
+                        "1. 点击右侧工具栏的 **【指标目录】**：查看当前系统支持的所有业务指标、统计口径及维度。\n" +
+                        "2. 点击右侧工具栏的 **【提问指南】**：参考标准提问模板（如：时间 + 地域 + 指标）来获得更准确的图表回复。\n\n" +
+                        "您可以根据目录中的指标名称，尝试重新对我提问。";
+                }
+                if (aiType === "recommend") {
+                    rawContent = jsonObj.text || "系统检测到缺少关键维度，建议您尝试以下提问：";
+
+                    let suggestions = jsonObj.suggestions || [];
+                    if (suggestions.length > 0) {
+                        let html = "<div class='recommend-bubbles-wrapper step-fade-in' style='margin-top: 15px; margin-bottom: 5px;'>";
+                        suggestions.forEach(function(s) {
+                            html += "<div class='recommend-bubble' onclick='fillInputAndSend(this)'>" +
+                                "<span>" + s + "</span>" +
+                                "<i class='layui-icon layui-icon-release'></i>" +
+                                "</div>";
+                        });
+                        html += "</div>";
+
+                        if (jsonObj.table) {
+                            html += '<div class="db-detail-table" style="margin-top: 15px;">\n' + jsonObj.table + '\n</div>\n';
+                        }
+
+                        result.extraHtml += html;
+
+                        return result;
+                    }
+                }
+
+            }
+        } catch (e) {
+            // 如果不是 JSON，按纯文本处理
+        }
+
+        if (rawContent && rawContent.startsWith('')) {
+            rawContent = rawContent.substring(''.length);
+        }
+
+        // 普通文本处理逻辑...
+        result.markdownText = marked.parse(rawContent);
+        return result;
+    }
+
+
+
+
+    window.triggerInPlaceAnalysis = function(elem) {
+        var ENABLE_ZNFX = true;
+        if (!ENABLE_ZNFX) {
+            layer.msg('系统正在升级优化中，深度分析暂不可用，敬请期待！', {icon: 0, time: 2500, offset: 't'});
+            return;
+        }
+        var $bar = $(elem);
+        // 防重复点击
+        if ($bar.hasClass('completed') || $bar.hasClass('loading')) return;
+
+        var $barRight = $bar.find('.bar-right');
+        var $bubble = $bar.closest('.bubble');
+        var $textarea = $bubble.find('.hidden-dify-data');
+
+        // 安全校验
+        if ($textarea.length === 0 || !$textarea.val()) {
+            layer.msg('当前数据暂不支持深度分析哦', {icon: 0});
+            return;
+        }
+
+        // 提取数据
+        var difyDataStr = $textarea.val();
+        var sessionId = $textarea.data('sessionid');
+        var queryText = $textarea.data('query') || "请帮我分析这份数据";
+        var $analysisResult = $bubble.find('.db-analysis-result');
+
+        // --- 1：长条进入加载状态 ---
+        $bar.addClass('loading');
+        $barRight.html('<i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop"></i> 正在生成洞察...');
+
+        // --- 2：结果框展开，显示轻微紫色提示 ---
+        $analysisResult.html('<span style="color:#8b5cf6; font-size:13px; font-style: italic;"><i class="layui-icon layui-icon-engine layui-anim layui-anim-rotate layui-anim-loop"></i> 专家模型推演中，请稍后...</span>');
+        $analysisResult.addClass('show');
+
+        // 自动滚动
+        var container = document.getElementById('messageContainer');
+        if (container) container.scrollTop = container.scrollHeight;
+
+        // --- 核心 Ajax 请求 ---
+        $.ajax({
+            url: "/service/analyzeDifyData",
+            type: 'post',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                sessionId: sessionId,
+                query: queryText,
+                data: difyDataStr
+            }),
+            success: function(res) {
+                $bar.removeClass('loading'); // 移除加载状态
+
+                if (res.success) {
+                    // 成功：变为“分析完成”状态
+                    $bar.addClass('completed');
+                    $barRight.html('分析完成');
+
+                    // 渲染 Markdown
+                    var parsedHtml = marked.parse(res.data || res.msg || "（分析完成，但未获取到文本内容）");
+                    $analysisResult.html(parsedHtml);
+                } else {
+                    // 失败：允许重试
+                    $barRight.html('<i class="layui-icon layui-icon-refresh-3"></i> 重新分析');
+                    $barRight.css('color', '#ef4444');
+                    $analysisResult.html("<span style='color:#ef4444;'>分析失败：" + (res.msg || "未知错误") + "</span>");
+                }
+                container.scrollTop = container.scrollHeight;
+            },
+            error: function() {
+                $bar.removeClass('loading');
+                $barRight.html('<i class="layui-icon layui-icon-refresh-3"></i> 重新分析');
+                $barRight.css('color', '#ef4444');
+                $analysisResult.html("<span style='color:#ef4444;'>网络请求异常，请重试</span>");
+            }
+        });
+    };
+
+    // 翻译替换函数
+    function translateText(text) {
+        if (!text) return text;
+        var newText = text;
+        for (var key in fieldMapping) {
+            // 生成全局忽略大小写的正则
+            var reg = new RegExp(key, "gi");
+            newText = newText.replace(reg, fieldMapping[key]);
+        }
+        return newText;
+    }
+
+    function buildAiThinkingHtml(rawThinkingText) {
+        if (!rawThinkingText) return '';
+        var decodedText = rawThinkingText.replace(/%0D%0A/ig, '\n');
+        var paragraphs = decodedText.split(/\n{2,}/).filter(function(p) { return p.trim() !== ''; });
+        var stepTitles = ["意图接收与预处理", "识别关键业务要素", "校验数据维度完整性", "构建核心查询逻辑", "生成初步推演结果", "执行深度逻辑演算"];
+
+        // 强制去除外层容器的历史遗留边框和背景
+        var html =
+            '<div class="ai-think-box" style="border: none !important; background: transparent !important; box-shadow: none !important; margin-bottom: 0; overflow: visible;">' +
+            '<button class="compact-think-toggle" onclick="toggleAiThink(this)" style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #475569; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
+            '<i class="layui-icon layui-icon-ai" style="color: #0ea5e9;"></i> 思考过程 <i class="layui-icon layui-icon-down toggle-icon" style="font-size: 12px; margin-left: 2px;"></i>' +
+            '</button>' +
+            // 展开后的完整时间轴面板
+            '<div class="ai-think-body" style="display: none; margin-top: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">' +
+            '<ul class="layui-timeline tech-timeline" style="margin:0;">';
+
+        paragraphs.forEach(function(content, index) {
+            var title = stepTitles[index] || "综合逻辑推演";
+            html +=
+                '<li class="layui-timeline-item" style="padding-bottom: 10px;">' +
+                '<div class="layui-timeline-content layui-text">' +
+                '<div class="layui-timeline-title" style="display: flex; align-items: center; margin-bottom: 4px;">' +
+                '<div style="background: #ecfdf5; color: #10b981; border: 1px solid #a7f3d0; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 8px; z-index: 2;"><i class="layui-icon layui-icon-ok" style="font-size: 12px; font-weight: bold;"></i></div>' +
+                '<span style="color: #475569; font-weight: 600;">' + title + '</span>' +
+                '</div>' +
+                '<p style="color: #64748b; font-size: 13px; padding-left: 30px; margin: 0;">' + content.trim() + '</p>' +
+                '</div>' +
+                '</li>';
+        });
+
+        html += '</ul></div></div>';
+        return html;
+    }
+
+
+
+    window.toggleAiThink = function(elem) {
+        var $btn = $(elem);
+        var $box = $btn.closest('.ai-think-box');
+        var $body = $box.find('.ai-think-body');
+        var $icon = $btn.find('.toggle-icon');
+
+        if ($body.is(':visible')) {
+            $body.slideUp(200);
+            $icon.removeClass('layui-icon-up').addClass('layui-icon-down');
+        } else {
+            $body.slideDown(200);
+            $icon.removeClass('layui-icon-down').addClass('layui-icon-up');
+        }
+    };
+
+    layui.use(['layer', 'util'], function() {
+        var layer = layui.layer;
+        var util = layui.util;
+
+// ================== Markdown 与 Echarts 解析配置 ==================
+        var pendingCharts = []; // 暂存需要渲染的图表
+
+        marked.use({
+            renderer: {
+                code(codeArg, infoString, escaped) {
+                    var safeCode = '';
+                    var language = '';
+
+                    if (typeof codeArg === 'object' && codeArg !== null) {
+                        safeCode = codeArg.text || '';
+                        language = (codeArg.lang || '').trim().toLowerCase();
+                    } else {
+                        safeCode = typeof codeArg === 'string' ? codeArg : '';
+                        language = typeof infoString === 'string' ? infoString.trim().toLowerCase() : '';
+                    }
+
+                    var isEcharts = (language === 'echarts');
+                    var isChartJson = (language === 'json' || language === '')
+                        && safeCode.includes('"series"')
+                        && (safeCode.includes('"xAxis"') || safeCode.includes('"yAxis"') || safeCode.includes('"pie"'));
+
+                    if (isEcharts || isChartJson) {
+                        const chartId = 'chart_' + Math.random().toString(36).substr(2, 9);
+                        var cleanJsonStr = safeCode.replace(/[\u00A0\u200B\u200C\u200D\u202F\uFEFF]/g, ' ');
+                        pendingCharts.push({ id: chartId, optionStr: cleanJsonStr });
+                        return '<div id="' + chartId + '" style="width: 100%; height: 350px; margin: 15px 0; border: 1px solid #eee; border-radius: 8px;"></div>';
+                    }
+
+                    return false;
+                }
+            }
+        });
+
+        marked.setOptions({
+            gfm: true,
+            breaks: true,
+            pedantic: false,
+            sanitize: false
+        });
+
+        // 执行渲染队列中的图表
+        function renderPendingCharts() {
+            pendingCharts.forEach(function(chartInfo) {
+                var dom = document.getElementById(chartInfo.id);
+                if (dom && !dom.getAttribute('data-rendered')) {
+                    try {
+                        var myChart = echarts.init(dom, null, { renderer: 'svg' });
+                        var cleanJsonStr = chartInfo.optionStr.replace(/[\u00A0\u200B\u200C\u200D\u202F\uFEFF]/g, ' ');
+                        var option = JSON.parse(cleanJsonStr);
+
+                        option.animation = false;
+                        if(option.hoverAnimation) option.hoverAnimation = false;
+                        if(option.series) {
+                            option.series.forEach(s => s.animation = false);
+                        }
+
+                        myChart.setOption(option);
+                        dom.setAttribute('data-rendered', 'true');
+                    } catch (e) {
+                        console.error("Echarts JSON 解析或渲染失败: ", e);
+                    }
+                }
+            });
+            pendingCharts = [];
+        }
+
+        // 全局变量
+        var historyListData = [];
+        // 获取按钮和父容器
+        var toggleBtn = document.getElementById('sidebarToggle');
+        var aiChatCard = document.querySelector('.ai-chat-card');
+
+        // 初始化图标
+        var iconEl = toggleBtn.querySelector('i');
+
+        // DOM 元素
+        var newChatBtn = document.getElementById('newChatBtn');
+        var historyListEl = document.getElementById('historyList');
+        var dropdownMenu = document.getElementById('dropdownMenu');
+        var menuPin = document.getElementById('menuPin');
+        var menuDelete = document.getElementById('menuDelete');
+        var pinText = document.getElementById('pinText');
+        var pinIcon = document.getElementById('pinIcon');
+        var currentActiveItemId = null;
+        var currentPinnedState = 0;
+
+        // 右侧消息相关
+        var welcomeScreen = document.getElementById('welcomeScreen');
+        var messagesList = document.getElementById('messagesList');
+        var messageInput = document.getElementById('messageInput');
+        var sendBtn = document.getElementById('sendBtn');
+        var znwsBtn = document.getElementById('znwsBtn');
+        var znfxBtn = document.getElementById('znfxBtn');
+        var fileTools = document.getElementById('fileTools');
+        var pptAnalysisBtn = document.getElementById('pptAnalysisBtn');
+        var selectFileBtn = document.getElementById('selectFileBtn');
+        var inputArea = document.getElementById('inputArea');
+
+        var pptDropdown = document.getElementById('pptDropdownMenu');
+        var pptAnalysis = "";
+
+        var isPptDropdownVisible = false;
+        // 根据当前用户的真实权限来初始化底层模式
+        var isZnws = isAdmin;
+        var isZnfx = !isAdmin;
+
+        // 存储已选文件列表（支持多个）
+        var selectedFiles = [];
+        var sendMsg = [];
+        var sendFiles = [];
+        var promptFileContent = "";
+
+        toggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();  // 防止触发其他点击事件
+
+            // 切换类
+            aiChatCard.classList.toggle('sidebar-collapsed');
+
+        });
+
+        newChatBtn.addEventListener('click', function() {
+
+            // 重置提示词配置
+            promptFileContent = "";
+            $('#promptConfigBtn').html('<i class="layui-icon layui-icon-set"></i> 提示词配置').attr('style', '');
+
+            // 重置 PPT 分析按钮状态
+            pptAnalysis = "1"; // 恢复默认值（默认基础分析）
+            var analysisBtn = document.getElementById('pptAnalysisBtn');
+            analysisBtn.classList.remove('selected'); // 移除绿框
+            analysisBtn.innerHTML = '<i class="layui-icon layui-icon-chart"></i> PPT分析'; // 恢复默认文字
+
+            // 1. 清除正在逐字显示的定时器
+            if (window.currentAiTimer) {
+                clearInterval(window.currentAiTimer);
+                window.currentAiTimer = null;
+            }
+
+            // 2. 清空消息列表
+            var chartDoms = messagesList.querySelectorAll('[data-rendered="true"]');
+            chartDoms.forEach(function(dom) {
+                var existChart = echarts.getInstanceByDom(dom);
+                if (existChart) {
+                    existChart.dispose();
+                }
+            });
+            messagesList.innerHTML = '';
+
+            // 3. 显示欢迎屏幕（若隐藏则显示）
+            welcomeScreen.style.display = 'flex'; // 根据实际样式调整为 block/flex
+
+            // 4. 清空输入框并重置高度
+            sendMsg = [];
+            messageInput.value = '';
+            autoExpandTextarea(); // 触发高度重置
+
+            // 5. 清空已选文件并隐藏预览
+            sendFiles = [];
+            selectedFiles = [];
+            renderFilePreviews(); // 内部会隐藏预览区域
+
+            // 6. 默认重置为“智能问数”模式
+            resetChatState();
+        });
+
+
+        // ---------- 数据加载 ----------
+        function loadHistoryData() {
+            $.ajax({
+                // url: "/znws/queryHisChatData",
+                url: "/service/sessionList",
+                type: 'get',
+                async: false,
+                success: function(result) {
+                    if(result.success){
+                        historyListData = result.data;
+                        renderHistory();
+                    }
+                }
+            });
+        }
+
+
+
+        // ---------- 渲染历史对话（仅渲染，不请求）----------
+        function renderHistory() {
+            if (!historyListData || historyListData.length === 0) {
+                historyListEl.innerHTML = '<div class="empty-tip">暂无历史对话</div>';
+                return;
+            }
+
+
+            var html = '';
+            historyListData.forEach(function(item) {
+                var pinIndicator = item.isTop==1 ? '<span class="pin-indicator"><i class="layui-icon layui-icon-pin" style="font-size: 12px;"></i></span>' : '';
+                html += '<div class="history-item" data-id="' + item.sessionId + '">' +
+                    '<i class="layui-icon layui-icon-conversation"></i>' +
+                    '<span class="item-text">' + escapeHtml(item.sessionTitle) + '</span>' +
+                    pinIndicator +
+                    '<button class="layui-btn layui-btn-primary more-btn" data-id="' + item.sessionId + '" title="更多操作">' +
+                    '<i class="layui-icon layui-icon-more"></i>' +
+                    '</button>' +
+                    '</div>';
+            });
+            historyListEl.innerHTML = html;
+
+            // 为每个更多按钮绑定事件（使用原生 forEach）
+            document.querySelectorAll('.more-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var id = this.getAttribute('data-id');
+                    var item = historyListData.find(it => it.sessionId+'' === id);
+                    if (!item) return;
+
+                    currentActiveItemId = id;
+                    currentPinnedState = item.isTop;
+
+                    // 更新菜单文本
+                    if (item.isTop === 1) {
+                        pinIcon.className = 'layui-icon layui-icon-down';
+                        pinText.innerText = '取消置顶';
+                    } else {
+                        pinIcon.className = 'layui-icon layui-icon-up';
+                        pinText.innerText = '置顶';
+                    }
+
+                    // 优化菜单定位：中心对准按钮中心，并做边界处理
+                    var rect = this.getBoundingClientRect();
+                    var menuWidth = 140;
+                    var left = rect.left + rect.width / 2 - menuWidth / 2;
+                    var top = rect.bottom + 4;
+
+                    // 防止菜单超出右边界
+                    if (left + menuWidth > window.innerWidth) {
+                        left = window.innerWidth - menuWidth - 5;
+                    }
+                    if (left < 0) left = 5;
+
+                    dropdownMenu.style.top = top + 'px';
+                    dropdownMenu.style.left = left + 'px';
+                    dropdownMenu.classList.add('show');
+                });
+            });
+        }
+        setTimeout(function() {
+            console.log("页面初始化：开始获取并渲染历史记录...");
+            if (typeof loadHistoryData === "function") {
+                loadHistoryData();
+            }
+        }, 500);
+
+        // 转义HTML（用于安全显示）
+        function escapeHtml(unsafe) {
+            return unsafe.replace(/[&<>"]/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m];
+            });
+        }
+
+
+        // 隐藏下拉菜单
+        function hideMenu() {
+            dropdownMenu.classList.remove('show');
+        }
+
+        historyListEl.addEventListener('click', function(e) {
+            // 如果点击的是更多按钮或其内部，不触发
+            if (e.target.closest('.more-btn')) return;
+
+            var item = e.target.closest('.history-item');
+            if (!item) return;
+            var sessionId = item.dataset.id;
+            if (!sessionId) return;
+            var item = historyListData.find(it => it.sessionId+'' === sessionId);
+            // loadChatDetail(sessionId);
+            loadChatDetail(item);
+        });
+
+        // 置顶/取消置顶
+        function handlePin() {
+            if (!currentActiveItemId) return;
+            var item = historyListData.find(it => it.sessionId+'' === currentActiveItemId);
+            if (!item) return;
+
+            $.ajax({
+                url: "/service/changeTopStatus",
+                type: 'post',
+                data: { sessionId: currentActiveItemId, isTop: item.isTop == 1 ? 0 : 1 },
+                success: function(res) {
+                    if (res.success) {
+                        loadHistoryData();   // 重新从后端获取最新数据
+                        layer.msg(res.msg);
+                    } else {
+                        layer.msg(res.msg || '操作失败');
+                    }
+                },
+                error: function() {
+                    layer.msg('网络错误，请稍后重试');
+                }
+            });
+
+            hideMenu();
+        }
+
+        // 删除
+        function handleDelete() {
+            if (!currentActiveItemId) return;
+            layer.confirm('确定删除该对话吗？', {
+                icon: 3, title: '提示', btn: ['确定', '取消']
+            }, function() {
+                $.ajax({
+                    url: "/service/remove",
+                    type: 'post',
+                    data: { sessionId: currentActiveItemId },
+                    success: function(res) {
+                        if (res.success) {
+
+                            if (currentActiveItemId == currentChatId) {
+
+                                // 1. 清除正在逐字显示的定时器
+                                if (window.currentAiTimer) {
+                                    clearInterval(window.currentAiTimer);
+                                    window.currentAiTimer = null;
+                                }
+
+                                // 2. 清空消息列表并重置欢迎屏幕
+                                messagesList.innerHTML = '';
+                                welcomeScreen.style.display = 'flex';
+
+                                // 3. 重置当前会话 ID 和输入框
+                                currentChatId = null;
+                                messageInput.value = '';
+                                autoExpandTextarea();
+                            }
+
+                            // 4. 刷新左侧列表
+                            loadHistoryData();
+                            layer.msg('已删除', { icon: 1, time: 1000 });
+                        } else {
+                            layer.msg(res.msg || '删除失败');
+                        }
+                    },
+                    error: function() {
+                        layer.msg('网络错误，请稍后重试');
+                    }
+                });
+                hideMenu();
+            }, function() {
+                hideMenu();
+            });
+        }
+
+        // 全局点击关闭菜单
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.more-btn') && !e.target.closest('#dropdownMenu')) {
+                hideMenu();
+            }
+            // 关闭 PPT 分析菜单
+            if (!e.target.closest('#pptAnalysisBtn') && !e.target.closest('#pptDropdownMenu')) {
+                hidePptDropdown();
+            }
+        });
+
+        // 菜单按钮事件
+        menuPin.addEventListener('click', function(e) {
+            e.stopPropagation();
+            handlePin();
+        });
+        menuDelete.addEventListener('click', function(e) {
+            e.stopPropagation();
+            handleDelete();
+        });
+
+        pptDropdown.addEventListener('click', function(e) {
+            var target = e.target.closest('.menu-item');
+            if (target) {
+                pptAnalysis = target.getAttribute('data-value');
+                hidePptDropdown();
+                isPptDropdownVisible = !isPptDropdownVisible;
+            }
+        });
+
+        // ---------- 右侧消息逻辑（不变）----------
+        function addUserMessage(text,znfx) {
+            if (!text.trim()) return false;
+            if (welcomeScreen.style.display !== 'none') welcomeScreen.style.display = 'none';
+            var msgDiv = document.createElement('div');
+            msgDiv.className = 'message user';
+            var userAvatarHtml = '<div class="avatar"><img src="/znws/images/user-icon.png" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div>';
+            if(znfx === "Y"){
+                msgDiv.innerHTML = userAvatarHtml + '<div class="bubble">' +
+                    '<div class="file-tag-message">\n' +
+                    '  <i class="layui-icon layui-icon-file" style="color: #ff5722;"></i>\n' +
+                    '  <span class="file-name">'+text+'</span>\n' +
+                    '</div>' +
+                    '</div>' +
+                    '</div>';
+            } else {
+                msgDiv.innerHTML = userAvatarHtml + '<div class="bubble">' + escapeHtml(text) + '</div>';
+            }
+
+
+            messagesList.appendChild(msgDiv);
+            document.querySelector('.message-container').scrollTop = document.querySelector('.message-container').scrollHeight;
+            return true;
+        }
+
+            // 兼容历史记录解析与渲染
+
+        function addAiMessage(text, thinkingText) {
+            return new Promise((resolve) => {
+                if (typeof text !== 'string') {
+                    text = typeof text === 'object' ? JSON.stringify(text) : String(text || "");
+                }
+
+                if (!thinkingText && text.indexOf('<think>') !== -1 && text.indexOf('</think>') !== -1) {
+                    var startIndex = text.indexOf('<think>') + 7;
+                    var endIndex = text.indexOf('</think>');
+                    thinkingText = text.substring(startIndex, endIndex);
+                    text = text.substring(endIndex + 8);
+                }
+
+                if (!text) {
+                    text = "（系统提示：未能获取到有效回复）";
+                }
+
+                var msgDiv = document.createElement('div');
+                msgDiv.className = 'message ai';
+
+                var processed = processAiContent(text);
+                var translatedText = translateText(processed.markdownText);
+                var ansHtml = marked.parse(translatedText) + (processed.extraHtml || "");
+
+                var contentWrapper = document.createElement('div');
+                contentWrapper.style.display = 'flex';
+                contentWrapper.style.flexDirection = 'column';
+                contentWrapper.style.width = '100%';
+                contentWrapper.style.gap = '8px';
+
+                if (thinkingText) {
+                    var thinkWrap = document.createElement('div');
+                    thinkWrap.innerHTML = buildAiThinkingHtml(thinkingText);
+                    contentWrapper.appendChild(thinkWrap);
+                }
+
+                var bubbleInner = document.createElement('div');
+                bubbleInner.className = 'bubble markdown-body wide-bubble';
+                if (ansHtml.indexOf('chart_') !== -1 || thinkingText) {
+                    bubbleInner.style.minWidth = '500px';
+                }
+
+                bubbleInner.innerHTML = ansHtml;
+                contentWrapper.appendChild(bubbleInner);
+
+                msgDiv.innerHTML = '<div class="avatar"><img src="' + AI_ICON_BASE64 + '" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div>';
+                msgDiv.appendChild(contentWrapper);
+                messagesList.appendChild(msgDiv);
+
+                var container = document.querySelector('.message-container');
+                setTimeout(() => {
+                    renderPendingCharts();
+                    container.scrollTop = container.scrollHeight;
+                    resolve();
+                }, 50);
+            });
+        }
+
+        // 自动拉伸文本框
+
+        var expandTimer = null;
+        function autoExpandTextarea() {
+            if (expandTimer) cancelAnimationFrame(expandTimer);
+            expandTimer = requestAnimationFrame(function() {
+                messageInput.style.height = 'auto';
+                messageInput.style.height = Math.min(messageInput.scrollHeight, 140) + 'px';
+            });
+        }
+
+        // 封装：根据用户权限自动重置界面的函数
+        function resetChatState() {
+            if (isAdmin) {
+                // 管理员：默认回到智能问数
+                if (document.getElementById('znwsBtn')) document.getElementById('znwsBtn').classList.add('active');
+                document.getElementById('znfxBtn').classList.remove('active');
+                document.getElementById('fileTools').style.display = 'none';
+                $('#znwsTools').css('display', 'flex');
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('messageInput').placeholder = '给AI智数助手发送消息';
+                isZnws = true;
+                isZnfx = false;
+            } else {
+                // 非管理员：死锁在智能分析
+                if (document.getElementById('znwsBtn')) document.getElementById('znwsBtn').classList.remove('active');
+                document.getElementById('znfxBtn').classList.add('active');
+                document.getElementById('fileTools').style.display = 'flex';
+                $('#znwsTools').hide();
+                document.getElementById('messageInput').disabled = true;
+                document.getElementById('messageInput').placeholder = '请点击右侧“选择文件”按钮上传文件';
+                isZnws = false;
+                isZnfx = true;
+            }
+            hidePptDropdown();
+        }
+
+        messageInput.addEventListener('input', autoExpandTextarea);
+        setTimeout(autoExpandTextarea, 0);
+        // ==========================================
+        //AI 推荐句式
+        // ==========================================
+        $('#messagesList').on('click', '.js-suggestion-btn', function() {
+            const val = $(this).text();
+            const $input = $('#messageInput');
+
+            $input.val(val).focus();
+
+            if(typeof autoExpandTextarea === 'function') {
+                autoExpandTextarea();
+            }
+
+            layer.msg('已填充至输入框', { time: 800, offset: 'b' });
+        });
+
+        function handleSend() {
+            $('.recommend-bubbles-wrapper').remove();
+            var znws = isZnws ? "Y" : "N";
+            var znfx = isZnfx ? "Y" : "N";
+            var text = messageInput.value.trim();
+
+
+
+            if (znfx === "Y") {
+                if (selectedFiles != null && selectedFiles.length > 0) {
+                    if (!text || text.trim() === '') {
+                        text = selectedFiles[0].fileName || selectedFiles[0].name || "未命名文件";
+                    }
+
+                    var fileId = selectedFiles[0].fileId;
+                    var fType = selectedFiles[0].fileType;
+                } else {
+                    layer.msg('请先选择需要分析的文件', {icon: 0});
+                    return;
+                }
+            } else {
+                // 智能问数模式下，没字依然要拦截
+                if (!text || text.trim() === '') return;
+            }
+            // ==========================================
+
+            var data = new Object();
+            data.sessionId = currentChatId;
+            data.question = text;
+            data.znws = znws;
+            data.znfx = znfx;
+            data.pptAnalysis = pptAnalysis;
+
+            if (znfx === "Y") {
+                data.selectedFiles = JSON.stringify(selectedFiles);
+            } else {
+                data.selectedFiles = "[]";
+            }
+
+            const param = JSON.stringify(data);
+            console.log('提交参数:', param);
+
+
+            if (addUserMessage(text, znfx)) {
+                autoExpandTextarea();
+                if (znfx === "Y") { //智能分析
+                    var $filesList = $('#filesList');
+                    $filesList.html("");
+                    var fileId = "";
+                    if (selectedFiles != null && selectedFiles.length > 0) {
+                        fileId = selectedFiles[0].fileId;
+                        sendFiles.push(selectedFiles[0]);
+                    }
+
+
+                    var aiMsgDiv = document.createElement('div');
+                    aiMsgDiv.className = 'message ai';
+                    aiMsgDiv.innerHTML = '<div class="avatar"><img src="' + AI_ICON_BASE64 + '" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div>';
+
+                    var contentWrapper = document.createElement('div');
+                    contentWrapper.style.display = 'flex';
+                    contentWrapper.style.flexDirection = 'column';
+                    contentWrapper.style.width = '100%';
+                    contentWrapper.style.gap = '8px';
+
+                    var uniqueId = 'timeline-' + new Date().getTime();
+
+                    var thinkWrap = document.createElement('div');
+                    var skeletonHtml =
+                        '<div class="ai-think-box expanded" id="think-wrapper-' + uniqueId + '" style="border: none !important; background: transparent !important; box-shadow: none !important; margin-bottom: 0; overflow: visible;">' +
+                        '<button class="compact-think-toggle" onclick="toggleAiThink(this)" style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #475569; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
+                        '<i class="layui-icon layui-icon-ai" style="color: #0ea5e9;"></i> <span id="think-title-' + uniqueId + '">深度思考中...</span> <i class="layui-icon layui-icon-up toggle-icon" style="font-size: 12px; margin-left: 2px;"></i>' +
+                        '</button>' +
+                        '<div class="ai-think-body" style="display: block; margin-top: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">' +
+                        '<ul class="layui-timeline tech-timeline" id="' + uniqueId + '" style="margin:0;"></ul>' +
+                        '</div>' +
+                        '</div>';
+                    thinkWrap.innerHTML = skeletonHtml;
+                    contentWrapper.appendChild(thinkWrap);
+
+                    var answerBubble = document.createElement('div');
+                    answerBubble.className = 'bubble markdown-body wide-bubble step-fade-in';
+                    answerBubble.id = 'answer-box-' + uniqueId;
+                    answerBubble.style.display = 'none';
+
+                    contentWrapper.appendChild(answerBubble);
+                    aiMsgDiv.appendChild(contentWrapper);
+                    messagesList.appendChild(aiMsgDiv);
+
+                    var container = document.getElementById('messageContainer');
+                    if (container) container.scrollTop = container.scrollHeight;
+
+                    // 发起智能分析任务
+                    $.ajax({
+                        url: "/znfx/analyzeSysFile",
+                        type: 'post',
+                        data: {
+                            fileId: fileId,
+                            fileType: fType,
+                            analysisType: pptAnalysis,
+                            question: text,
+                            sessionId: currentChatId,
+                            promptsContent: promptFileContent,
+                            promptTarget: currentPromptTarget
+                        },
+                        success: function (result) {
+                            promptFileContent = "";
+                            promptFileType = "";
+                            currentPromptTarget = "";
+                            $('#promptConfigBtn').html('<i class="layui-icon layui-icon-set"></i> 提示词配置').attr('style', '');
+                            if (result.success && result.data != null) {
+                                var isNewChat = (currentChatId == null);
+                                var taskId = result.data.task_id;
+                                var realSessionId = result.data.sessionId || currentChatId;
+                                currentChatId = realSessionId;
+                                if (isNewChat) {
+                                    loadHistoryData();
+                                }
+
+                                if (!taskId) {
+                                    var errBox = document.getElementById('answer-box-' + uniqueId);
+                                    errBox.innerHTML = "（系统提示：未能获取到任务ID，无法查询进度）";
+                                    errBox.style.display = 'block';
+                                    return;
+                                }
+                                var immediateText = result.data.analysis_text;
+                                if (immediateText) {
+                                    // 1. 关闭多余的定时器
+                                    if (window.currentAiTimer) {
+                                        clearInterval(window.currentAiTimer);
+                                        window.currentAiTimer = null;
+                                    }
+
+                                    // 2. 隐藏并折叠那个占位的“深度思考中...”
+                                    var finalThinkTitle = document.getElementById('think-title-' + uniqueId);
+                                    var finalThinkWrapper = document.getElementById('think-wrapper-' + uniqueId);
+                                    if (finalThinkTitle) finalThinkTitle.innerText = "思考过程";
+                                    if (finalThinkWrapper) {
+                                        $(finalThinkWrapper).find('.ai-think-body').hide();
+                                        $(finalThinkWrapper).find('.toggle-icon').removeClass('layui-icon-up').addClass('layui-icon-down');
+                                    }
+
+                                    // 3. 渲染出最终结果
+                                    var processed = processAiContent(immediateText, realSessionId, formatTime(new Date()));
+                                    var translatedContent = translateText(processed.markdownText);
+                                    var parsedContent = marked.parse(translatedContent);
+                                    var ansHtml = parsedContent + (processed.extraHtml || "");
+
+                                    var answerBox = document.getElementById('answer-box-' + uniqueId);
+                                    if (answerBox) {
+                                        answerBox.innerHTML = ansHtml;
+                                        answerBox.style.display = 'block';
+                                        setTimeout(function () {
+                                            renderPendingCharts();
+                                            var container = document.getElementById('messageContainer');
+                                            if (container) container.scrollTop = container.scrollHeight;
+                                        }, 50);
+                                    }
+                                    return;
+                                }
+
+                                // ==========================================
+                                // 2. 打字机特效
+                                // ==========================================
+                                var thinkingText = "收到这份经营分析后，我的首要任务是将分散在多页、多维度的图表信息，整合为一份逻辑清晰、结论明确的智能分析报告。整个分析过程遵循“从整体到局部，从结果到过程”的框架，具体分为以下三个步骤：\n\n" +
+                                    "第一步：全局定位，确立基调。\n我会首先审视最核心的“总体概况”指标，如总收入、总客户数以及它们的环比、同比变化。这一步的目的是快速为整体经营情况定下基调——是“平稳”、“向好”还是“承压”。如果发现核心指标出现显著波动，我会将其标记为本次报告需要重点关注的核心观点。\n\n" +
+                                    "第二步：结构拆解，定位病灶。\n在了解整体情况后，我会对收入和客户结构进行拆解。收入方面，我会将其拆分关键板块，通过对比各板块的整体的作用，来判断增长的主力和风险的来源。客户方面，我会区分客群，并特别关注核心业务的变动。\n\n" +
+                                    "第三步：归纳提炼，形成报告。\n最后，我会将以上所有分析结果进行归纳和提炼。在报告中，我会先用“核心观点”部分简明扼要地概括整体情况与最突出的问题，再用分章节的详细数据，来提供支撑依据，确保最终的报告既有结论性的判断，又有详实的数据佐证，快速把握经营全貌并做出决策。";
+
+                                var paragraphs = thinkingText.split(/\n{2,}/).filter(function(p) { return p.trim() !== ''; });
+                                var stepTitles = ["意图接收与预处理", "识别关键业务要素", "校验数据维度完整性", "构建核心查询逻辑", "生成初步推演结果", "执行深度逻辑演算"];
+
+                                var currentParaIndex = 0;
+                                var currentCharIndex = 0;
+                                var isPaused = false;
+
+                                if (window.currentAiTimer) clearInterval(window.currentAiTimer);
+
+                                window.currentAiTimer = setInterval(function () {
+                                    if (isPaused) return;
+
+                                    // 打字机打完后，立即收起面板并显示结果区 Loading
+                                    if (currentParaIndex >= paragraphs.length) {
+                                        clearInterval(window.currentAiTimer);
+                                        window.currentAiTimer = null;
+
+                                        // 1. 获取对应的 UI 元素
+                                        var finalThinkTitle = document.getElementById('think-title-' + uniqueId);
+                                        var finalThinkWrapper = document.getElementById('think-wrapper-' + uniqueId);
+
+                                        // 2. 如果当前还在显示“中”字（表示还没被后端结果覆盖），则执行提前收起逻辑
+                                        if (finalThinkTitle && finalThinkTitle.innerText.includes("中")) {
+                                            finalThinkTitle.innerText = "思考完成 (正在生成最终报告)";
+                                            if (finalThinkWrapper) {
+                                                var $body = $(finalThinkWrapper).find('.ai-think-body');
+                                                var $icon = $(finalThinkWrapper).find('.toggle-icon');
+                                                $body.slideUp(300); // 丝滑收回
+                                                $icon.removeClass('layui-icon-up').addClass('layui-icon-down');
+                                            }
+
+                                            // 3. 在下方结果气泡里提前展示加载动效，告知用户没卡死
+                                            var answerBox = document.getElementById('answer-box-' + uniqueId);
+                                            if (answerBox) {
+                                                answerBox.innerHTML =
+                                                    '<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 10px; color: #64748b;">' +
+                                                    '<i class="layui-icon layui-icon-engine layui-anim layui-anim-rotate layui-anim-loop" style="font-size: 32px; color: #3b82f6; margin-bottom: 15px;"></i>' +
+                                                    '<span style="font-size: 15px; font-weight: 600; color: #334155;">专家模型已完成推理</span>' +
+                                                    '<span style="font-size: 13px; color: #94a3b8; margin-top: 8px;">正在撰写与排版报告，请稍候...</span>' +
+                                                    '</div>';
+                                                answerBox.style.display = 'block';
+
+                                                var container = document.getElementById('messageContainer');
+                                                if (container) container.scrollTop = container.scrollHeight;
+                                            }
+                                        }
+                                        return;
+                                    }
+
+                                    var currentPara = paragraphs[currentParaIndex];
+
+                                    if (currentCharIndex === 0) {
+                                        var title = stepTitles[currentParaIndex] || "深度逻辑演算";
+                                        var iconBoxId = 'icon-box-' + uniqueId + '-' + currentParaIndex;
+                                        var titleId = 'title-text-' + uniqueId + '-' + currentParaIndex;
+
+                                        var html = '<li class="layui-timeline-item step-fade-in">' +
+                                            '<div class="layui-timeline-content layui-text">' +
+                                            '<div class="layui-timeline-title" style="display: flex; align-items: center;">' +
+                                            '<div class="step-icon-box" id="' + iconBoxId + '" style="background: #f0f9ff; color: #0ea5e9; border: 1px solid #bae6fd; box-shadow: 0 0 10px rgba(14,165,233,0.3); transition: all 0.4s ease; display: flex; justify-content: center; align-items: center; margin-right: 8px;">' +
+                                            '<i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop"></i>' +
+                                            '</div>' +
+                                            '<span style="font-weight: 500; color: #0ea5e9; transition: color 0.4s ease;" id="' + titleId + '">' + title + '</span>' +
+                                            '</div>' +
+                                            '<div class="step-text-box">' +
+                                            '<p style="color: #64748b; margin-top: 8px; min-height: 20px;" id="think-chunk-' + uniqueId + '-' + currentParaIndex + '"></p>' +
+                                            '</div>' +
+                                            '</div>' +
+                                            '</li>';
+                                        var ulElement = document.getElementById(uniqueId);
+                                        if (ulElement) ulElement.insertAdjacentHTML('beforeend', html);
+                                        var container = document.getElementById('messageContainer');
+                                        if (container) container.scrollTop = container.scrollHeight;
+                                    }
+
+                                    var targetP = document.getElementById('think-chunk-' + uniqueId + '-' + currentParaIndex);
+                                    if (targetP) {
+                                        if (currentCharIndex < currentPara.length) {
+                                            targetP.innerHTML = currentPara.substring(0, currentCharIndex + 1);
+                                            currentCharIndex += 1;
+                                            var container = document.getElementById('messageContainer');
+                                            if (container) container.scrollTop = container.scrollHeight;
+                                        } else {
+                                            var iconBox = document.getElementById('icon-box-' + uniqueId + '-' + currentParaIndex);
+                                            var titleText = document.getElementById('title-text-' + uniqueId + '-' + currentParaIndex);
+                                            if (iconBox) {
+                                                iconBox.style.background = '#ecfdf5';
+                                                iconBox.style.color = '#10b981';
+                                                iconBox.style.borderColor = '#a7f3d0';
+                                                iconBox.style.boxShadow = 'none';
+                                                iconBox.innerHTML = '<i class="layui-icon layui-icon-ok layui-anim layui-anim-scaleSpring" style="font-weight: bold; font-size: 14px;"></i>';
+                                            }
+                                            if (titleText) titleText.style.color = '#475569';
+
+                                            isPaused = true;
+                                            setTimeout(function () {
+                                                currentParaIndex++;
+                                                currentCharIndex = 0;
+                                                isPaused = false;
+                                            }, 800);
+                                        }
+                                    }
+                                }, 18);
+
+                                // ==========================================
+                                // 3. 轮询结果及 UI 收缩
+                                // ==========================================
+                                var checkTimer = setInterval(function () {
+                                    $.ajax({
+                                        url: "/znfx/status?taskId=" + taskId,
+                                        type: 'get',
+                                        success: function (statusRes) {
+                                            if (statusRes.success) {
+                                                var currentStatus = statusRes.data.status;
+
+                                                if (currentStatus === 'completed' || currentStatus === 'success') {
+                                                    clearInterval(checkTimer);
+
+                                                    if (window.currentAiTimer) {
+                                                        clearInterval(window.currentAiTimer);
+                                                        window.currentAiTimer = null;
+                                                    }
+
+                                                    $.ajax({
+                                                        url: "/znfx/result?taskId=" + taskId + "&sessionId=" + realSessionId,
+                                                        type: 'get',
+                                                        success: function (finalRes) {
+                                                            if (finalRes.success && finalRes.data) {
+                                                                // 获取完整的合并文本
+                                                                var fullText = finalRes.data.analysis_text || (finalRes.data.result ? finalRes.data.result.analysis_text : "");
+                                                                var reportText = fullText;
+                                                                var backendThinking = "";
+
+                                                                // 解析后端返回的 <think> 标签，将文字分离
+                                                                if (reportText.indexOf('<think>') !== -1 && reportText.indexOf('</think>') !== -1) {
+                                                                    var startIndex = reportText.indexOf('<think>') + 7;
+                                                                    var endIndex = reportText.indexOf('</think>');
+                                                                    backendThinking = reportText.substring(startIndex, endIndex);
+                                                                    reportText = reportText.substring(endIndex + 8).trim();
+                                                                }
+
+                                                                var finalThinkWrapper = document.getElementById('think-wrapper-' + uniqueId);
+                                                                if (finalThinkWrapper) {
+                                                                    var $body = $(finalThinkWrapper).find('.ai-think-body');
+                                                                    var staticHtmlBox = buildAiThinkingHtml(backendThinking || thinkingText);
+                                                                    var tempDiv = document.createElement('div');
+                                                                    tempDiv.innerHTML = staticHtmlBox;
+                                                                    var ulNode = tempDiv.querySelector('ul');
+                                                                    if(ulNode) {
+                                                                        $body.html(ulNode.outerHTML);
+                                                                    }
+
+                                                                    var finalThinkTitle = document.getElementById('think-title-' + uniqueId);
+                                                                    if (finalThinkTitle) finalThinkTitle.innerText = "思考过程";
+
+                                                                    var $icon = $(finalThinkWrapper).find('.toggle-icon');
+                                                                    $body.slideUp(250);
+                                                                    $icon.removeClass('layui-icon-up').addClass('layui-icon-down');
+                                                                }
+
+                                                                if (reportText) {
+                                                                    var processed = processAiContent(reportText, realSessionId, formatTime(new Date()));
+                                                                    var translatedContent = translateText(processed.markdownText);
+                                                                    var parsedContent = marked.parse(translatedContent);
+                                                                    var ansHtml = parsedContent + (processed.extraHtml || "");
+
+                                                                    var footerHtml =
+                                                                        '<div class="msg-footer">' +
+                                                                        '<div class="msg-footer-right">' + formatTime(new Date()) + '</div>' +
+                                                                        '</div>';
+                                                                    ansHtml += footerHtml;
+
+                                                                    var answerBox = document.getElementById('answer-box-' + uniqueId);
+                                                                    if (answerBox) {
+                                                                        answerBox.innerHTML = ansHtml;
+                                                                        answerBox.style.display = 'block';
+
+                                                                        setTimeout(function () {
+                                                                            renderPendingCharts();
+                                                                            var container = document.getElementById('messageContainer');
+                                                                            if (container) container.scrollTop = container.scrollHeight;
+                                                                        }, 50);
+                                                                    }
+                                                                } else {
+                                                                    var errBox = document.getElementById('answer-box-' + uniqueId);
+                                                                    errBox.innerHTML = "（系统提示：获取到了数据，但未能解析出 analysis_text 字段）";
+                                                                    errBox.style.display = 'block';
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                } else if (currentStatus === 'failed' || currentStatus === 'error') {
+                                                    clearInterval(checkTimer);
+                                                    if (window.currentAiTimer) clearInterval(window.currentAiTimer);
+                                                    var errBox = document.getElementById('answer-box-' + uniqueId);
+                                                    errBox.innerHTML = "（系统提示）AI 分析过程中发生错误！";
+                                                    errBox.style.display = 'block';
+                                                }
+                                            }
+                                        }
+                                    });
+                                }, 3000);
+
+                            } else {
+                                layer.msg('智能分析请求失败：' + (result.msg || "未知错误"), {icon: 2});
+                            }
+                        },
+                        error: function (xhr) {
+                            layer.msg('网络请求异常，状态码：' + xhr.status, {icon: 2});
+                        }
+                    });
+                } else {
+                    sendMsg.push(messageInput.value);
+                    messageInput.value = '';
+
+                    // ==========================================
+                    // 1. 生成 AI 气泡和折叠框骨架
+                    // ==========================================
+                    var aiMsgDiv = document.createElement('div');
+                    aiMsgDiv.className = 'message ai';
+                    aiMsgDiv.innerHTML = '<div class="avatar"><img src="' + AI_ICON_BASE64 + '" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div>';
+
+                    var contentWrapper = document.createElement('div');
+                    contentWrapper.style.display = 'flex';
+                    contentWrapper.style.flexDirection = 'column';
+                    contentWrapper.style.width = '100%';
+                    contentWrapper.style.gap = '8px';
+
+                    var uniqueId = 'timeline-' + new Date().getTime();
+
+                    var thinkWrap = document.createElement('div');
+
+                    var skeletonHtml =
+                        '<div class="ai-think-box expanded" id="think-wrapper-' + uniqueId + '" style="border: none !important; background: transparent !important; box-shadow: none !important; margin-bottom: 0; overflow: visible;">' +
+                        '<button class="compact-think-toggle" onclick="toggleAiThink(this)" style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #475569; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">' +
+                        '<i class="layui-icon layui-icon-ai" style="color: #0ea5e9;"></i> <span id="think-title-' + uniqueId + '">深度思考中...</span> <i class="layui-icon layui-icon-up toggle-icon" style="font-size: 12px; margin-left: 2px;"></i>' +
+                        '</button>' +
+                        '<div class="ai-think-body" style="display: block; margin-top: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; width: 100%; box-sizing: border-box; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">' +
+                        '<ul class="layui-timeline tech-timeline" id="' + uniqueId + '" style="margin:0;"></ul>' +
+                        '</div>' +
+                        '</div>';
+                    thinkWrap.innerHTML = skeletonHtml;
+                    contentWrapper.appendChild(thinkWrap);
+
+                    var answerBubble = document.createElement('div');
+                    answerBubble.className = 'bubble markdown-body wide-bubble step-fade-in';
+                    answerBubble.id = 'answer-box-' + uniqueId;
+                    answerBubble.style.display = 'none';
+
+                    contentWrapper.appendChild(answerBubble);
+                    aiMsgDiv.appendChild(contentWrapper);
+                    messagesList.appendChild(aiMsgDiv);
+
+                    var container = document.getElementById('messageContainer');
+                    if (container) container.scrollTop = container.scrollHeight;
+
+                    var ulElement = document.getElementById(uniqueId);
+                    var answerBox = document.getElementById('answer-box-' + uniqueId);
+                    var thinkTitle = document.getElementById('think-title-' + uniqueId);
+                    var thinkWrapper = document.getElementById('think-wrapper-' + uniqueId);
+
+                    // ==========================================
+                    // 2. SaaS 骨架屏流光动效
+                    // ==========================================
+
+                    // 动态注入骨架屏专属 CSS 动画
+                    if (!document.getElementById('ai-skeleton-style')) {
+                        var style = document.createElement('style');
+                        style.id = 'ai-skeleton-style';
+                        style.innerHTML = `
+                            .skeleton-wrapper { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; width: 100%; }
+                            .skeleton-block {
+                                background: #e2e8f0;
+                                border-radius: 4px;
+                                position: relative;
+                                overflow: hidden;
+                            }
+                            /* 核心流光特效 */
+                            .skeleton-block::after {
+                                content: '';
+                                position: absolute;
+                                top: 0; left: 0; right: 0; bottom: 0;
+                                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+                                transform: translateX(-100%);
+                                animation: shimmer 1.5s infinite;
+                            }
+                            @keyframes shimmer {
+                                100% { transform: translateX(100%); }
+                            }
+                            .sk-title { width: 120px; height: 16px; border-radius: 4px; }
+                            .sk-icon { width: 24px; height: 24px; border-radius: 50%; }
+                            .sk-line { height: 12px; margin-left: 34px; }
+                            .sk-l1 { width: 85%; }
+                            .sk-l2 { width: 95%; }
+                            .sk-l3 { width: 60%; }
+                        `;
+                        document.head.appendChild(style);
+                    }
+
+                    var progressLiId = 'progress-step-' + uniqueId;
+
+                    // 构造一个完美的假时间轴节点轮廓
+                    var initLiHtml =
+                        '<li class="layui-timeline-item step-fade-in" id="' + progressLiId + '">' +
+                        '<div class="layui-timeline-content layui-text">' +
+                        '<div class="skeleton-wrapper">' +
+                        // 骨架屏头部：假图标 + 假标题
+                        '<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">' +
+                        '<div class="skeleton-block sk-icon"></div>' +
+                        '<div class="skeleton-block sk-title"></div>' +
+                        '</div>' +
+                        // 骨架屏主体：三行长短不一的假文字
+                        '<div class="skeleton-block sk-line sk-l1"></div>' +
+                        '<div class="skeleton-block sk-line sk-l2"></div>' +
+                        '<div class="skeleton-block sk-line sk-l3"></div>' +
+                        '</div>' +
+                        '</div>' +
+                        '</li>';
+
+                    ulElement.insertAdjacentHTML('beforeend', initLiHtml);
+
+                    setTimeout(function () {
+                        var scrollContainer = document.querySelector('.message-container');
+                        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                    }, 50);
+
+                    // ==========================================
+                    // 3. 后台发送 Ajax 请求
+                    // ==========================================
+                    $.ajax({
+                        url: "/service/send",
+                        type: 'post',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            question: text,
+                            sessionId: currentChatId
+                        }),
+                        success: function (result) {
+                            var progressLi = document.getElementById(progressLiId);
+                            if (progressLi) progressLi.remove();
+
+                            if (result.success && result.data != null) {
+                                var isNewChat = (currentChatId == null);
+                                currentChatId = result.data.sessionId;
+                                if (isNewChat) {
+                                    loadHistoryData();
+                                }
+                                var answer = result.data.answer || "";
+                                var thinking = result.data.thinking || "";
+
+                                function renderFinalAnswer() {
+                                    // ==========================================
+                                    // 出结果的瞬间，让思考面板自动折叠并改名
+                                    // ==========================================
+                                    var finalThinkTitle = document.getElementById('think-title-' + uniqueId);
+                                    var finalThinkWrapper = document.getElementById('think-wrapper-' + uniqueId);
+
+                                    if (finalThinkTitle) {
+                                        finalThinkTitle.innerText = "思考过程";
+                                    }
+                                    if (finalThinkWrapper) {
+                                        var $body = $(finalThinkWrapper).find('.ai-think-body');
+                                        var $icon = $(finalThinkWrapper).find('.toggle-icon');
+                                        $body.slideUp(250); // 2. 丝滑收起
+                                        $icon.removeClass('layui-icon-up').addClass('layui-icon-down'); // 3. 箭头朝下
+                                    }
+                                    var processed = processAiContent(answer, currentChatId, formatTime(new Date()));
+                                    var translatedContent = translateText(processed.markdownText);
+                                    var parsedContent = marked.parse(translatedContent);
+                                    var ansHtml = parsedContent + (processed.extraHtml || "");
+
+                                    // 只保留右侧时间，去掉重新提问按钮
+                                    if (!processed.isDashboard) {
+                                        var footerHtml =
+                                            '<div class="msg-footer">' +
+                                            '<div class="msg-footer-right">' + formatTime(new Date()) + '</div>' +
+                                            '</div>';
+                                        ansHtml += footerHtml;
+                                    }
+
+                                    // 找到之前埋好的隐藏气泡
+                                    var answerBox = document.getElementById('answer-box-' + uniqueId);
+                                    if (answerBox) {
+                                        // 把纯净的内容塞进去并显示
+                                        answerBox.innerHTML = ansHtml;
+                                        answerBox.style.display = 'block';
+
+                                        // 如果允许推荐，给外层容器打个标记
+                                        if (processed.showRecommend) {
+                                            answerBox.parentNode.classList.add('allow-recommend');
+                                        }
+
+                                        // 延迟50ms渲染图表并滚动到底部
+                                        setTimeout(function () {
+                                            renderPendingCharts();
+                                            var container = document.getElementById('messageContainer');
+                                            if (container) container.scrollTop = container.scrollHeight;
+
+                                            // 豆包风推荐气泡！
+                                            if (processed.showRecommend) {
+                                                fetchAndRenderRecommendations(answerBox.parentNode);
+                                            }
+                                        }, 50);
+                                    }
+                                }
+
+                                if (thinking) {
+                                    // ==========================================
+                                    // 4. 打字机特效
+                                    // ==========================================
+                                    var decodedText = thinking.replace(/%0D%0A/ig, '\n');
+                                    var paragraphs = decodedText.split(/\n{1,}/).filter(function (p) {
+                                        return p.trim() !== '';
+                                    });
+                                    var stepTitles = ["意图接收与预处理", "识别关键业务要素", "校验数据维度完整性", "构建核心查询逻辑", "生成初步推演结果", "执行深度逻辑演算"];
+
+                                    var currentParaIndex = 0;
+                                    var currentCharIndex = 0;
+                                    var isPaused = false;
+
+                                    window.currentAiTimer = setInterval(function () {
+                                        if (isPaused) return;
+
+                                        if (currentParaIndex >= paragraphs.length) {
+                                            clearInterval(window.currentAiTimer);
+                                            renderFinalAnswer();
+                                            return;
+                                        }
+
+                                        var currentPara = paragraphs[currentParaIndex];
+
+                                        if (currentCharIndex === 0) {
+                                            var title = stepTitles[currentParaIndex] || "综合逻辑演算";
+                                            var iconBoxId = 'icon-box-' + uniqueId + '-' + currentParaIndex;
+                                            var titleId = 'title-text-' + uniqueId + '-' + currentParaIndex;
+
+                                            var html = '<li class="layui-timeline-item step-fade-in">' +
+                                                '<div class="layui-timeline-content layui-text">' +
+                                                '<div class="layui-timeline-title" style="display: flex; align-items: center;">' +
+                                                '<div class="step-icon-box" id="' + iconBoxId + '" style="background: #f0f9ff; color: #0ea5e9; border: 1px solid #bae6fd; box-shadow: 0 0 10px rgba(14,165,233,0.3); transition: all 0.4s ease; display: flex; justify-content: center; align-items: center; margin-right: 8px;">' +
+                                                '<i class="layui-icon layui-icon-loading layui-anim layui-anim-rotate layui-anim-loop"></i>' +
+                                                '</div>' +
+                                                '<span style="font-weight: 500; color: #0ea5e9; transition: color 0.4s ease;" id="' + titleId + '">' + title + '</span>' +
+                                                '</div>' +
+                                                '<div class="step-text-box">' +
+                                                '<p style="color: #64748b; margin-top: 8px; min-height: 20px;" id="think-chunk-' + uniqueId + '-' + currentParaIndex + '"></p>' +
+                                                '</div>' +
+                                                '</div>' +
+                                                '</li>';
+                                            var ulElement = document.getElementById(uniqueId);
+                                            if (ulElement) ulElement.insertAdjacentHTML('beforeend', html);
+                                            var container = document.getElementById('messageContainer');
+                                            if (container) container.scrollTop = container.scrollHeight;
+                                        }
+
+                                        var targetP = document.getElementById('think-chunk-' + uniqueId + '-' + currentParaIndex);
+                                        if (targetP) {
+                                            if (currentCharIndex < currentPara.length) {
+                                                targetP.innerHTML = currentPara.substring(0, currentCharIndex + 1);
+                                                currentCharIndex += 1;
+                                                var container = document.getElementById('messageContainer');
+                                                if (container) container.scrollTop = container.scrollHeight;
+                                            } else {
+                                                var iconBox = document.getElementById('icon-box-' + uniqueId + '-' + currentParaIndex);
+                                                var titleText = document.getElementById('title-text-' + uniqueId + '-' + currentParaIndex);
+                                                if (iconBox) {
+                                                    iconBox.style.background = '#ecfdf5';
+                                                    iconBox.style.color = '#10b981';
+                                                    iconBox.style.borderColor = '#a7f3d0';
+                                                    iconBox.style.boxShadow = 'none';
+                                                    iconBox.innerHTML = '<i class="layui-icon layui-icon-ok layui-anim layui-anim-scaleSpring" style="font-weight: bold; font-size: 14px;"></i>';
+                                                }
+                                                if (titleText) titleText.style.color = '#475569';
+
+                                                isPaused = true;
+                                                setTimeout(function () {
+                                                    currentParaIndex++;
+                                                    currentCharIndex = 0;
+                                                    isPaused = false;
+                                                }, 1000);
+                                            }
+                                        }
+                                    }, 18);
+
+                                } else {
+                                    renderFinalAnswer();
+                                }
+
+                            } else {
+                                layer.msg('系统预警：' + (result.msg || "查询出现异常，操作已撤销"), {
+                                    icon: 2,
+                                    time: 3500
+                                });
+
+                                var aiMsgDiv = document.getElementById('answer-box-' + uniqueId);
+                                if (aiMsgDiv && aiMsgDiv.parentNode && aiMsgDiv.parentNode.parentNode) {
+                                    aiMsgDiv.parentNode.parentNode.remove();
+                                }
+                                var allUserMsgs = document.querySelectorAll('.message.user');
+                                if (allUserMsgs.length > 0) {
+                                    allUserMsgs[allUserMsgs.length - 1].remove();
+                                }
+
+                                $('#messageInput').val(text);
+                                if (typeof autoExpandTextarea === 'function') autoExpandTextarea();
+                            }
+                        },
+                        error: function (xhr) {
+                            layer.msg('网络请求异常，状态码：' + xhr.status + "，操作已撤销", {icon: 2});
+
+                            var aiMsgDiv = document.getElementById('answer-box-' + uniqueId);
+                            if (aiMsgDiv && aiMsgDiv.parentNode && aiMsgDiv.parentNode.parentNode) {
+                                aiMsgDiv.parentNode.parentNode.remove();
+                            }
+                            var allUserMsgs = document.querySelectorAll('.message.user');
+                            if (allUserMsgs.length > 0) {
+                                allUserMsgs[allUserMsgs.length - 1].remove();
+                            }
+
+                            $('#messageInput').val(text);
+                            if (typeof autoExpandTextarea === 'function') autoExpandTextarea();
+                        }
+                    });
+                }
+            }
+        }
+
+        sendBtn.addEventListener('click', handleSend);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        });
+
+        // ==========================================
+        // 智能分析按钮切换逻辑
+        // ==========================================
+        znfxBtn.addEventListener('click', function() {
+            // 如果已经是智能分析模式，点击不作反应
+            if (znfxBtn.classList.contains('active')) {
+                return;
+            }
+
+            if (znwsBtn) {
+                znwsBtn.classList.remove('active');
+            }
+            znfxBtn.classList.add('active');
+
+            // 2. 切换右侧工具栏：显示“文件/PPT工具”，隐藏“指南/指标目录”
+            fileTools.style.display = 'flex';
+            $('#znwsTools').hide();
+
+            // 3. 核心：禁用输入框，提示用户上传文件
+            messageInput.disabled = true;
+            messageInput.placeholder = '请点击右侧“选择文件”按钮上传文件';
+
+            // 4. 同步更新全局业务逻辑变量
+            isZnws = false;
+            isZnfx = true;
+
+            hidePptDropdown();
+        });
+            // ==========================================
+            // 智能问数按钮切换 - 彻底启用
+            // ==========================================
+        if (znwsBtn) {
+            znwsBtn.addEventListener('click', function () {
+                if (znwsBtn.classList.contains('active')) return;
+
+                // 1. 切换按钮激活状态
+                znwsBtn.classList.add('active');
+                znfxBtn.classList.remove('active');
+
+                // 2. 切换右侧工具栏：隐藏“文件/PPT工具”，显示“指南/指标目录”
+                fileTools.style.display = 'none';
+                $('#znwsTools').css('display', 'flex');
+
+                // 3. 核心：解除输入框禁用，更改提示文字
+                messageInput.disabled = false;
+                messageInput.placeholder = '给AI智数助手发送消息';
+
+                // 4. 更新全局业务逻辑变量
+                isZnws = true;
+                isZnfx = false;
+
+                hidePptDropdown();
+            });
+        }
+
+        // ==========================================
+        // 智能问数按钮切换 (已停用)
+        // ==========================================
+        // znwsBtn.addEventListener('click', function() {
+        //     layer.msg('智能问数功能当前已停用，请使用智能分析', {icon: 0, time: 1500});
+        //     return false;
+        // });
+
+        pptAnalysisBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (isPptDropdownVisible) {
+                hidePptDropdown(pptAnalysisBtn);
+            } else {
+                showPptDropdown(pptAnalysisBtn);
+            }
+            isPptDropdownVisible = !isPptDropdownVisible;
+        });
+
+        var promptBtn = document.getElementById('promptConfigBtn');
+        if (promptBtn) {
+            promptBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showPromptDropdown(this);
+            });
+        }
+
+        // 1. 声明一个全局变量，记录用户到底想配置谁
+        var currentPromptTarget = "";
+
+        // 2. 渲染提示词下拉菜单位置的函数
+        function showPromptDropdown(btn) {
+            var $menu = $('#promptDropdownMenu');
+            $menu.show().css('visibility', 'hidden'); // 先显示出来测算高度
+
+            var rect = btn.getBoundingClientRect();
+            var menuHeight = $menu.outerHeight();
+
+            // 将菜单定位在按钮的正上方，留 4px 间距
+            $menu.css({
+                top: (rect.top - menuHeight - 4) + 'px',
+                left: rect.left + 'px',
+                visibility: 'visible'
+            });
+        }
+
+            // 3. 监听菜单项的点击：选好了分类，再触发真正的文件选择
+        $('#promptDropdownMenu').on('click', '.menu-item', function() {
+            currentPromptTarget = $(this).data('target'); // 拿到 county 或 local
+            console.log(">>>>>> 当前准备配置的目标是: " + currentPromptTarget);
+
+            // 此时再触发那个隐藏的 <input type="file">
+            document.getElementById('promptFileInput').click();
+            $('#promptDropdownMenu').hide();
+        });
+
+        // 监听文件选择并读取文本内容
+        document.getElementById('promptFileInput').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            // 判断文件后缀，只允许 .md 和 .yaml/.yml
+            var fileName = file.name.toLowerCase();
+            if (fileName.endsWith('.md')) {
+                promptFileType = "md";
+            } else if (fileName.endsWith('.yaml') || fileName.endsWith('.yml')) {
+                promptFileType = "yaml";
+            } else {
+                layer.msg('提示词仅支持 .md 或 .yaml 格式的文件', {icon: 2});
+                this.value = '';
+                return;
+            }
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                promptFileContent = e.target.result;
+                var btn = document.getElementById('promptConfigBtn');
+                btn.innerHTML = '<i class="layui-icon layui-icon-success"></i> ' + escapeHtml(file.name);
+                btn.style.color = '#10b981';
+                btn.style.borderColor = '#10b981';
+                layer.msg('提示词已就绪（' + promptFileType + '）', {icon: 1});
+            };
+            reader.readAsText(file, 'UTF-8');
+            this.value = '';
+        });
+
+        selectFileBtn.addEventListener('click', function() {
+
+
+
+            layer.open({
+                type: 2,
+                title: '选择文件',
+                shade: 0.1,
+                area: ['550px', '320px'],
+                content: '/znws/selectFile',
+                btn: ['确定', '取消'],
+                yes: function (index, layero) {
+                    // 触发 iframe 内的提交
+                    window['layui-layer-iframe' + index].submitForm();
+
+                    let fileVal = $("#selectedFileInfo").val();
+                    if(fileVal){
+                        var selectedFileInfo = JSON.parse(fileVal);
+                        selectedFiles = [selectedFileInfo];
+
+                        renderFilePreviews();
+
+                        $("#selectedFileInfo").val('');
+
+                        layer.close(index);
+                    } else {
+                    }
+                },
+                cancel: function (index, layero) {
+                    layer.close(index);
+                    return false;
+                }
+            });
+        });
+        // 根据 selectedFiles 渲染文件标签
+        function renderFilePreviews() {
+            var $filesList = $('#filesList');
+            var $preview = $('#filesPreview');
+            if (!selectedFiles || selectedFiles.length === 0) {
+                $preview.hide();
+                $filesList.empty();
+                return;
+            }
+            var html = '';
+            $.each(selectedFiles, function(index, file) {
+                // 假设文件对象包含 fileName 或 name 属性
+                var fileName = file.fileName || file.name || '未命名文件';
+                html += '<div class="file-tag" data-index="' + index + '">' +
+                    '<i class="layui-icon layui-icon-file" style="color: #ff5722; font-size: 14px; margin-right: 4px;"></i>' +
+                    '<span class="file-name" title="' + fileName + '">' + escapeHtml(fileName) + '</span>' +
+                    '<i class="layui-icon layui-icon-close" data-index="' + index + '"></i>' +
+                    '</div>';
+            });
+            $filesList.html(html);
+            $preview.show();
+        }
+
+        // 文件标签删除（使用事件委托）
+        $('#filesList').on('click', '.layui-icon-close', function(e) {
+            e.stopPropagation();
+            var $tag = $(this).closest('.file-tag');
+            var index = $tag.data('index');  // 从 data-index 获取
+            if (index !== undefined) {
+                // 从数组中移除
+                selectedFiles.splice(index, 1);
+                // 重新渲染
+                renderFilePreviews();
+                // 如果文件列表为空，预览区域自动隐藏（已在 renderFilePreviews 中处理）
+            }
+        });
+
+
+        // 显示上拉菜单
+        function showPptDropdown(btn) {
+            // 临时显示菜单以获取实际高度（避免闪烁，先设为不可见）
+            pptDropdown.style.display = 'block';
+            pptDropdown.style.visibility = 'hidden';
+
+            var menuHeight = pptDropdown.offsetHeight;      // 菜单实际高度
+            var menuWidth = pptDropdown.offsetWidth;        // 菜单实际宽度
+            var rect = btn.getBoundingClientRect();
+
+            // 默认定位在按钮正上方，间距4px
+            var left = rect.left;
+            var top = rect.top - menuHeight - 4;
+
+            // 边界检查：如果上方超出视口顶部，则改为显示在按钮下方
+            if (top < 0) {
+                top = rect.bottom + 4;
+            }
+
+            // 右边界检查
+            if (left + menuWidth > window.innerWidth) {
+                left = window.innerWidth - menuWidth - 5;
+            }
+            if (left < 0) left = 5;
+
+            // 应用位置并显示
+            pptDropdown.style.top = top + 'px';
+            pptDropdown.style.left = left + 'px';
+            pptDropdown.style.visibility = 'visible';
+        }
+
+        // 隐藏下拉菜单
+        function hidePptDropdown() {
+            pptDropdown.style.display = 'none';
+            pptDropdown.style.visibility = '';   // 清除内联样式
+        }
+        // 点击选项
+
+        pptDropdown.addEventListener('click', function(e) {
+            var target = e.target.closest('.menu-item');
+
+            // 拦截：如果点到的菜单项包含 disabled 类，什么都不做
+            if (target && target.classList.contains('disabled')) {
+                return;
+            }
+
+            if (target) {
+                pptAnalysis = target.getAttribute('data-value');
+
+                // 找到原本的按钮 pptAnalysisBtn
+                var analysisBtn = document.getElementById('pptAnalysisBtn');
+
+                if (pptAnalysis === "1") {
+                    // 如果选了基础分析（data-value 为 "1"）
+                    // 1. 给按钮加上绿框类 selected
+                    analysisBtn.classList.add('selected');
+                    // 2. 将按钮文字更新为“基础分析”
+                    analysisBtn.innerHTML = '<i class="layui-icon layui-icon-chart"></i> 基础分析';
+                } else if (pptAnalysis === "2") {
+                    // 如果选了深度分析（虽然现在被禁用，但未来要处理）
+                    analysisBtn.classList.add('selected');
+                    analysisBtn.innerHTML = '<i class="layui-icon layui-icon-chart"></i> 深度分析';
+                } else {
+                    // 如果由于某种原因清空了选择
+                    analysisBtn.classList.remove('selected');
+                    analysisBtn.innerHTML = '<i class="layui-icon layui-icon-chart"></i> PPT分析';
+                }
+
+                hidePptDropdown();
+            }
+        });
+
+
+        function loadChatDetail(item) {
+            // 停止正在进行的逐字动画
+            if (window.currentAiTimer) {
+                clearInterval(window.currentAiTimer);
+                window.currentAiTimer = null;
+            }
+
+            layer.load(2); // 显示加载中
+
+            $.ajax({
+                url: '/service/message/history',
+                type: 'get',
+                data: { sessionId: item.sessionId },
+                success: function(result) {
+
+                    if(result.success){
+                        if (result.data && result.data.length > 0) {
+                            currentChatId = item.sessionId;
+                            renderChatMessages(result.data);
+                        } else {
+                            layer.closeAll('loading'); // 如果没数据，直接关掉
+                        }
+                    } else {
+                        layer.closeAll('loading'); // 请求报错，直接关掉
+                    }
+                },
+                error: function() {
+                    layer.closeAll('loading');
+                    layer.msg('网络错误');
+                }
+            });
+        }
+
+        function renderChatMessages(messages) {
+            var lastUserQuestion = "";
+            var chartDoms = messagesList.querySelectorAll('[data-rendered="true"]');
+            chartDoms.forEach(function (dom) {
+                var existChart = echarts.getInstanceByDom(dom);
+                if (existChart) {
+                    existChart.dispose();
+                }
+            });
+            messagesList.innerHTML = '';          // 清空现有消息
+            welcomeScreen.style.display = 'none'; // 隐藏欢迎屏幕
+
+            if (!messages || messages.length === 0) return;
+
+            var lastAiMsgElement = null; // 1. 新增：记录上一个渲染出来的 AI 气泡
+
+            messages.forEach(msg => {
+                var msgDiv = document.createElement('div');
+                msgDiv.className = 'message ' + (msg.role === 'user' ? 'user' : 'system');
+
+                if (msg.role === 'user') {
+                    lastAiMsgElement = null; // 2. 用户发言时，打断合并判定
+                    lastUserQuestion = msg.content;
+                    var content = escapeHtml(msg.content);
+                    if (msg.msgType != 'text') {
+                        selectedFiles = [];
+                        var file = new Object();
+                        file.fileId = "";
+                        file.fileName = msg.content;
+                        selectedFiles.push(file);
+                        msgDiv.innerHTML = '<div class="avatar"><img src="/znws/images/user-icon.png" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div><div class="bubble">' +
+                            '<div class="file-tag-message">\n' +
+                            '  <i class="layui-icon layui-icon-file"></i>\n' +
+                            '  <span class="file-name">' + escapeHtml(msg.content) + '</span>\n' +
+                            '</div>' +
+                            '</div>';
+                    } else {
+                        msgDiv.innerHTML = `<div class="avatar"><img src="/znws/images/user-icon.png" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div><div class="bubble">${content}</div>`;
+                    }
+                    messagesList.appendChild(msgDiv);
+
+                } else {
+                    msgDiv.className = 'message ai';
+                    var text = msg.content || "";
+                    var thinkingText = "";
+
+                    if (text.indexOf('<think>') !== -1 && text.indexOf('</think>') !== -1) {
+                        var startIndex = text.indexOf('<think>') + 7;
+                        var endIndex = text.indexOf('</think>');
+                        thinkingText = text.substring(startIndex, endIndex);
+                        text = text.substring(endIndex + 8);
+                    }
+
+                    // ==========================================
+                    // 🌟 3. 核心合并逻辑：把分析结果拽回卡片里
+                    // ==========================================
+                    var isJson = false;
+                    try {
+                        var testObj = JSON.parse(text);
+                        if (testObj && (testObj.type === 'dashboard' || testObj.type === 'analysis')) isJson = true;
+                    } catch(e) {}
+
+                    if (!isJson && lastAiMsgElement) {
+                        // 如果这是一段纯文本报告，且前面紧挨着一个图表卡片
+                        var $prevResultBox = $(lastAiMsgElement).find('.db-analysis-result');
+                        if ($prevResultBox.length > 0) {
+                            // 直接把报告渲染进上一条消息的框里，并展开！
+                            $prevResultBox.html(marked.parse(text));
+                            $prevResultBox.addClass('show');
+
+
+                            var $prevBar = $(lastAiMsgElement).find('.db-analyze-bar');
+                            if ($prevBar.length > 0) {
+                                $prevBar.addClass('completed');
+                                $prevBar.find('.bar-right').html('分析完成');
+                            }
+                            return;
+                        }
+                    }
+                    // ==========================================
+
+                    var processed = processAiContent(text, currentChatId, formatTime(msg.createTime));
+                    var translatedContent = translateText(processed.markdownText);
+                    var parsedContent = marked.parse(translatedContent);
+                    var ansHtml = parsedContent + (processed.extraHtml || "");
+
+                    // 只有普通图表才追加底部时间戳，已移除重新提问按钮
+                    if (!processed.isDashboard) {
+                        var footerHtml =
+                            '<div class="msg-footer">' +
+                            '<div class="msg-footer-right">' + formatTime(msg.createTime) + '</div>' +
+                            '</div>';
+                        ansHtml += footerHtml;
+                    }
+
+                    var contentWrapper = document.createElement('div');
+                    contentWrapper.style.display = 'flex';
+                    contentWrapper.style.flexDirection = 'column';
+                    contentWrapper.style.width = '100%';
+                    contentWrapper.style.gap = '8px';
+
+                    if (processed.showRecommend) {
+                        contentWrapper.classList.add('allow-recommend');
+                    }
+
+                    if (thinkingText) {
+                        var thinkWrap = document.createElement('div');
+                        thinkWrap.innerHTML = buildAiThinkingHtml(thinkingText);
+                        contentWrapper.appendChild(thinkWrap);
+                    }
+
+                    var bubbleInner = document.createElement('div');
+                    bubbleInner.className = 'bubble markdown-body wide-bubble';
+                    bubbleInner.innerHTML = ansHtml;
+                    contentWrapper.appendChild(bubbleInner);
+
+                    msgDiv.innerHTML = '<div class="avatar"><img src="' + AI_ICON_BASE64 + '" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;"></div>';
+                    msgDiv.appendChild(contentWrapper);
+                    messagesList.appendChild(msgDiv);
+
+                    lastAiMsgElement = msgDiv; // 4. 记录当前 AI 气泡，给下一条消息做铺垫
+                }
+
+
+            });
+            resetChatState();
+
+            var container = document.getElementById('messageContainer');
+            if (container) container.scrollTop = container.scrollHeight;
+
+            setTimeout(() => {
+                renderPendingCharts();
+                container.scrollTop = container.scrollHeight;
+
+                layer.closeAll('loading');
+            }, 50);
+
+            // 只有在渲染历史记录的最末尾，且最后一条是 AI，且带了允许标记时，才尝试加载推荐
+            var allAiWrappers = document.querySelectorAll('.message.ai');
+            if (allAiWrappers.length > 0) {
+                var lastAiMsg = allAiWrappers[allAiWrappers.length - 1];
+                var lastWrapper = lastAiMsg.querySelector('div[style*="column"]');
+                if (isZnws && lastWrapper && lastWrapper.classList.contains('allow-recommend')) {
+                    fetchAndRenderRecommendations(lastWrapper);
+                }
+            }
+        }
+
+        loadHistoryData();
+
+
+
+
+        // ==========================================
+        // 指标目录抽屉逻辑
+        // ==========================================
+
+        const metricsData = {
+            "规模": ["移动月到达用户数", "宽带月到达用户数", "移动出账到达用户数", "宽带出账到达用户数"],
+            "新增": ["移动月新增用户数", "宽带月新增用户数"],
+            "5G": ["5G月发展量", "5G月升套餐发展量", "5G月加包发展量"],
+            "千兆": ["千兆月发展量", "千兆月升套餐发展量", "千兆月加包发展量"],
+            "小合约": ["小合约月发展量", "四融小合约月发展量"],
+            "收入保有": ["拍照收入", "拍照月均收入", "当年月均收入", "收保率", "基础业务收保率", "双线收保率", "公众收保率", "政企收保率"],
+            "客户保有": ["客保率", "公众客保率", "政企客保率", "客保率环比", "客保率同比"],
+            "中高值": ["中高值拍照客户数", "中高值存量到达", "中高值存量净增", "中高值月负拉动", "中高值月正拉动", "中高值月流失率"],
+            "套餐变更": ["套餐变更量", "套餐档位高迁量", "套餐档位平迁量", "套餐档位低迁量", "套餐变更收入环比"],
+            "业务变化": ["加业务量", "拆业务量"],
+            "积分/销量": ["当月积分", "积分环比", "当月日均积分"],
+            "控流失": ["移动当月流失率", "公众移动当月流失率", "政企移动当月流失率", "宽带当月流失率", "公众宽带当月流失率", "政企宽带当月流失率"]
+        };
+        const disabledMetrics = [
+            "当年月均收入", "客保率", "客保率环比", "客保率同比",
+            "中高值月负拉动", "中高值月正拉动", "套餐变更收入环比",
+            "当月日均积分", "移动当月流失率", "政企移动当月流失率"
+        ];
+
+// 渲染列表函数
+        function renderMetrics(filter = '') {
+            let html = '';
+            for (let cat in metricsData) {
+                // 过滤二级指标
+                let items = metricsData[cat].filter(i => i.includes(filter));
+                // 如果分类名称匹配，或者分类下有匹配的指标，则显示该分类
+                if (items.length === 0 && !cat.includes(filter)) continue;
+
+                // 如果是因为分类名称匹配而显示的，但没有二级指标匹配，则显示该分类下所有指标
+                let displayItems = (cat.includes(filter) && filter !== '') ? metricsData[cat] : items;
+
+                html += `
+        <div class="metric-group">
+            <div class="group-title">
+                <i class="layui-icon layui-icon-triangle-d"></i>
+                <span>${cat}</span>
+            </div>
+            <div class="item-list">
+                ${displayItems.map(i => {
+                    // 【核心判定】：检查当前指标是否在置灰名单里
+                    let isDisabled = disabledMetrics.includes(i);
+                    let className = isDisabled ? 'metric-item disabled-item' : 'metric-item';
+                    let titleTips = isDisabled ? 'title="数据暂未上线，敬请期待"' : '';
+
+                    return `<div class="${className}" ${titleTips}>${i}</div>`;
+                }).join('')}
+            </div>
+        </div>`;
+            }
+            $('#metricTree').html(html);
+        }
+
+// 1. 打开抽屉
+        $('#metricDirBtn').on('click', function() {
+            $('#metricDrawer').addClass('open');
+            $('#drawerMask').fadeIn(200);
+            renderMetrics(); // 打开时渲染初始列表
+        });
+
+// 2. 关闭抽屉（点击关闭图标或点击遮罩层）
+        $('#closeDrawer, #drawerMask').on('click', function() {
+            $('#metricDrawer').removeClass('open');
+            $('#drawerMask').fadeOut(200);
+        });
+
+// 3. 搜索框实时过滤
+        $('#metricSearchInput').on('input', function() {
+            renderMetrics($(this).val());
+        });
+
+// 4. 分类折叠/展开逻辑 (委托给父容器)
+        $('#metricTree').on('click', '.group-title', function() {
+            const $group = $(this);
+            $group.toggleClass('collapsed');
+            $group.next('.item-list').slideToggle(200);
+        });
+
+// 5. 点击指标自动填充输入框
+        $('#metricTree').on('click', '.metric-item', function() {
+            const $this = $(this);
+
+            if ($this.hasClass('disabled-item')) {
+                layer.msg('该指标数据暂未上线，正在加紧研发中！', { icon: 0, time: 1500, offset: 'b' });
+                return false; // 终止执行
+            }
+
+            const val = $this.text();
+            const $input = $('#messageInput');
+            const currentVal = $input.val();
+
+            const newVal = currentVal ? (currentVal + ' ' + val) : val;
+
+            $input.val(newVal).focus();
+            autoExpandTextarea();
+
+            layer.msg('已添加: ' + val, { time: 800, offset: 'b' });
+        });
+        // ==========================================
+        // 提问指南抽屉逻辑
+        // ==========================================
+
+        // 1. 打开提问指南抽屉
+        $('#guideBtn').on('click', function() {
+            $('#guideDrawer').addClass('open');
+            $('#drawerMask').fadeIn(200);
+        });
+
+        // 2. 关闭提问指南抽屉
+        $('#closeGuideDrawer').on('click', function() {
+            $('#guideDrawer').removeClass('open');
+            $('#drawerMask').fadeOut(200);
+        });
+
+        // 遮罩层点击时，同时关掉两个抽屉以防万一
+        $('#drawerMask').on('click', function() {
+            $('#metricDrawer').removeClass('open');
+            $('#guideDrawer').removeClass('open');
+            $(this).fadeOut(200);
+        });
+
+        // 3. 点击“常用句式”：自动填充、拉伸框体并收起抽屉
+        $('#guideDrawer').on('click', '.sentence-box', function() {
+            const val = $(this).text();
+            const $input = $('#messageInput');
+
+            // 直接覆盖填充到输入框
+            $input.val(val).focus();
+            autoExpandTextarea(); // 触发输入框高度自适应
+
+            // 自动收起“提问指南”抽屉
+            $('#guideDrawer').removeClass('open');
+            $('#drawerMask').fadeOut(200);
+        });
+
+        // 4. 点击底部的链接文字，直接关掉当前指南，无缝切到“指标目录”抽屉
+        $('#openMetricFromGuide').on('click', function() {
+            $('#guideDrawer').removeClass('open');
+            $('#metricDrawer').addClass('open');
+            renderMetrics(); // 确保指标目录渲染了
+        });
+
+        $('.input-row').on('click', function(e) {
+            if (e.target.id !== 'sendBtn') {
+                $('#messageInput').focus();
+            }
+        });
+
+        $('.input-row').on('dragstart contextmenu', function(e) {
+            if (e.target.id !== 'messageInput') {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+    });
+
+
+
+</script>
+<div class="metric-drawer" id="metricDrawer">
+    <div class="drawer-header">
+        <i class="layui-icon layui-icon-right close-drawer" id="closeDrawer"></i>
+        <span>指标目录</span>
+    </div>
+    <div class="drawer-search">
+        <div class="search-inner">
+            <i class="layui-icon layui-icon-search"></i>
+            <input type="text" id="metricSearchInput" placeholder="搜索指标...">
+        </div>
+    </div>
+    <div class="drawer-content" id="metricTree">
+    </div>
+</div>
+<div class="metric-drawer guide-drawer" id="guideDrawer">
+    <div class="drawer-header">
+        <i class="layui-icon layui-icon-right close-drawer" id="closeGuideDrawer"></i>
+        <span>💡 提问指南</span>
+    </div>
+    <div class="drawer-content guide-content">
+
+        <div class="guide-section">
+            <div class="guide-title">📅 数据范围</div>
+            <div class="guide-text">当前仅支持查询 <span class="highlight-blue">2026年</span> 数据</div>
+        </div>
+
+        <div class="guide-section">
+            <div class="guide-title">🔑 关键信息</div>
+            <div class="guide-text">查询格式 = 月份 + 地域（全疆/分公司/县分/网格） + 指标</div>
+            <div class="guide-text">例：2026年2月 + 全疆 + 移动出账到达用户数</div>
+        </div>
+
+        <div class="guide-section">
+            <div class="guide-title">💬 常用句式 <span class="sub-title">（点击可直接提问）</span></div>
+            <div class="guide-sentences">
+                <div class="sentence-box">2026年2月全疆移动出账到达用户数</div>
+                <div class="sentence-box">2026年2月乌鲁木齐宽带月新增用户数</div>
+                <div class="sentence-box">2026年1月乌什5G月发展量</div>
+                <div class="sentence-box">2026年1月乌鲁木齐河北路嘉华园城区网格千兆月升套餐发展量</div>
+            </div>
+        </div>
+
+        <div class="guide-section">
+            <div class="guide-title">📊 上线场景</div>
+            <ul class="guide-list">
+                <li>规模：移动、宽带月到达用户数···</li>
+                <li>新增：移动月新增用户数</li>
+                <li>5G：5G月发展量、5G月升套餐发展量</li>
+                <li>千兆：千兆月发展量、千兆月加包发展量</li>
+            </ul>
+            <div class="guide-link" id="openMetricFromGuide">具体上线场景及指标可查看对话框「指标目录」</div>
+        </div>
+
+    </div>
+</div>
+<div class="drawer-mask" id="drawerMask"></div>
+</body>
+</html>

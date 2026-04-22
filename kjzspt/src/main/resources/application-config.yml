@@ -1,0 +1,109 @@
+#ppt模板上传路径
+ppt-upload-path: D:\testPpt\source\
+#ppt模板生成路径
+ppt-target-path: D:\testPpt\target\
+#ppt模板缓存路径
+ppt-temp-path: D:\testPpt\temp\
+#ppt文件转PDF路径
+ppt-file-topdf-path: D:\testPpt\pptTopdf\
+
+
+#智能搜索文件上传路径
+search-upload-path: D:\testPpt\search\upload\
+#智能搜索文件转PDF路径
+search-file-topdf-path: D:\testPpt\search\topdf\
+
+#Tess4J路径
+tess4j-path: D:\testPpt\tessdata\
+
+#IM文件推送文件转PDF路径
+im-file-topdf-path: D:\testPpt\im\
+#IM文件推送管理批量导入模板文件路径
+im-batch-import-model-path: D:\testPpt\im\batchImportModel\IM推送对象批量导入模板.xlsx
+
+#IM推送角色管理批量导入模板文件路径
+im-push-role-import-model-path: D:\testPpt\im\role\batchImportModel\推送对象批量导入模板.xlsx
+
+
+#活动监控模板上传路径
+hdjk-upload-path: D:\testPpt\hdjk\source\
+#活动监控模板生成路径
+hdjk-target-path: D:\testPpt\hdjk\target\
+#活动监控模板Excel转PDF路径
+hdjk-excelToPdf-path: D:\testPpt\hdjk\toPdf\
+#活动监控生成文件最大条数
+hdjk-createFile-maxData: 2000
+
+#自助取数报表路径
+report-target-path: D:\testPpt\report\target\
+#自助取数模板路径
+report-template-path: D:\testPpt\report\template\
+#自助取数自动生成报表路径
+report-auto-create-path: D:\testPpt\report\autoCreate\
+#自助取数审批人
+report-auto-apply-person: 罗静娅、鲍含、唐金廷、谢利明
+
+
+#知识库附件路径
+know-attachment-path: D:\testPpt\know\attachment\
+#知识库封面路径
+know-cover-path: D:\testPpt\know\cover\
+#知识库视频路径
+know-video-path: D:\testPpt\know\video\
+
+#县分PPT模板路径
+xf-ppt-model-path: D:\testPpt\xfPpt\model\
+#县分PPT文件生成路径
+xf-ppt-create-file-path: D:\testPpt\xfPpt\createFile\
+#县分PPT文件推送管理文件转PDF路径
+xf-ppt-file-topdf-path: D:\testPpt\xfPpt\topdf\
+
+#网格PPT模板路径
+wg-ppt-model-path: D:\testPpt\wgPpt\model\
+#网格PPT文件推送管理文件转PDF路径
+wg-ppt-file-topdf-path: D:\testPpt\wgPpt\topdf\
+#网格PPT文件推送管理批量导入模板文件路径
+wg-ppt-batch-import-model-path: D:\testPpt\wgPpt\batchImportModel\网格PPT推送对象批量导入模板.xlsx
+#网格PPT文件生成路径
+wg-ppt-create-file-path: D:\testPpt\wgPpt\createFile\
+
+
+#应用统计中心自助取数统计导出文件路径
+yytjzx-report-count-export-path: D:\testPpt\yytjzx\report\exportpath\
+
+
+#ppt文本字体绿色前缀字符串
+ppt-font-green-config: -,劣化,下降,减少,降幅,低于
+#ppt文本字体红色前缀字符串
+ppt-font-red-config: +,上升,提升,改善,增加,增幅
+
+#ppt 柱状图柱子颜色,柱状图下的表格背景颜色对应字段名称(全疆除外)
+ppt-bar-table-color-name: (克州),(乌鲁木齐),(阿克苏),(阿勒泰),(巴州),(博州),(昌吉),(哈密),(和田),(喀什),(克拉玛依),(奎屯),(石河子),(塔城),(吐鲁番),(伊犁)
+
+#ppt数据转换对应 KHJY_PPTZDH_TBXX，KHJY_PPTZDH_WBXX 两张oracle表的模板ID
+ppt-convert-oldTable-mould-id: (1),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18)
+
+#ppt数据转换柱状图标题动态生成周转换类型
+ppt-convert-week-convert_type: (week_scddh_jftq)
+
+#是否从doris数据库中获取转换数据  true:从doris数据库中获取转换数据  false:从本地mySql数据库中获取转换数据
+is-doris-get-data: false
+
+# 智能问数查询底表配置  表名写在这里
+ai:
+  doris:
+    znws-table: khjy_znws_zb_hb
+
+#智能问数查询底表日表
+ai-doris-znws-table-d: aaaa
+
+ai-analysis-base-url: http://135.224.23.41:8000
+
+# 短厅下发短信接口配置
+sms:
+  api-url: http://135.224.181.127:9000/api/openapi/xjdt/open/app/main.do
+  app-key: aiyy
+  secret: HuIdvukBOUu4ldDPC7AA
+  sys-type: 330
+  x-app-id: e34cd12bd334cbbd23fb405ea5086f38
+  x-app-key: b195eb0c341e378fb195e767f3ce0a7a

@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <meta charset="UTF-8">
+    <title>用户登录</title>
+
+    <link rel="stylesheet" th:href="@{/admin/css/login/style.css}"/>
+    <th:block th:include="include :: header('用户登录')"/>
+
+    <style>
+        /* ---------------- 自定义 SSO 拦截 ---------------- */
+        body .my-dark-sso-alert {
+            background: rgba(10, 20, 35, 0.85);
+            border: 1px solid #0082FF;
+            box-shadow: 0 0 20px rgba(0, 130, 255, 0.4);
+            border-radius: 8px;
+            color: #e0e0e0;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 隐藏掉按钮上方的默认横线 */
+        body .my-dark-sso-alert .layui-layer-btn {
+            border-top: none;
+            padding-bottom: 25px;
+        }
+
+        /* 深度定制“我知道了”按钮 */
+        body .my-dark-sso-alert .layui-layer-btn a {
+            background-color: #0082FF;
+            border-color: #0082FF;
+            color: #ffffff;
+            border-radius: 4px;
+            padding: 0 35px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        /* 按钮 Hover 发光效果 */
+        body .my-dark-sso-alert .layui-layer-btn a:hover {
+            box-shadow: 0 0 10px rgba(0, 130, 255, 0.8);
+            opacity: 0.9;
+        }
+
+
+        /* 自定义成功提示样式 */
+        .my-success-msg {
+            background-color: #D3D3D3;
+            /*color: #1f7a1f; */
+            border: 1px solid #D3D3D3;
+            border-radius: 8px;        /* 圆角 */
+            /*padding: 15px 20px; */       /* 内边距 */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* 阴影 */
+        }
+
+        /* 自定义警告提示样式 */
+        .my-warning-msg {
+            background-color: #fffbeb;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            border-radius: 4px;
+        }
+    </style>
+
+</head>
+<body>
+<div class="loginav">
+    <div class="video"><video src="/admin/images/login/video.mp4" muted autoplay loop></video></div>
+    <div class=""></div>
+    <div class="loginbox boxall">
+        <div class="logo">
+            <h1>客经智数平台</h1>
+            <h2>ke jing zhi shu ping tai</h2>
+            <!-- <img src="images/logo.png"> -->
+        </div>
+        <div class="logintit">用户登录</div>
+        <ul class="logininput">
+            <li>
+                <i><img src="/admin/images/login/user.png"></i>
+                <input name="username" id="username" class="forminput" value="" type="text" placeholder="用户名">
+            </li>
+            <li>
+                <i><img src="/admin/images/login/password.png"></i>
+                <input name="password" id="password" class="forminput" type="password" value="" placeholder="密码">
+            </li>
+            <li>
+                <i><img src="/admin/images/login/icon3.png"></i>
+                <input name="captcha" id="captcha" class="forminput" style="width: calc(100% - 150px);" type="text" value="" placeholder="验证码">
+                <div class="captcha-image-div">
+                    <img id="captchaImage" name="captchaImage" src="/system/captcha/generate" style="border-radius: 8px;"/>
+                </div>
+            </li>
+
+
+            <div class=" flex1" style="padding: 15px 0;">
+                <label> <input name="remember-me" id="remember-me" type="checkbox" class="aui-checkbox" style="border-radius: 5px;">&nbsp;记住密码</label>
+                <label lay-filter="forget-password" lay-submit> 忘记密码</label>
+                <div style=""></div>
+            </div>
+
+            <li>
+                <a href="#" class="btn btnblock btn-lg btn-block btn-primary" lay-filter="login" lay-submit style="border-radius: 8px;">登录</a>
+            </li>
+        </ul>
+        <div class="boxfoot"></div>
+    </div>
+</div>
+<div class="copyright">版权所有：中通服公众信息产业股份有限公司</div>
+
+<canvas id='canvas'
+        style="position:fixed; width:100%; height:100%; left: 0; top: 0; opacity: .3; pointer-events: none;"></canvas>
+
+
+<!--消息提示框-->
+<div class="tips-title"></div>
+
+
+<!-- 忘记密码弹出框 -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">忘记密码</h3>
+            <button class="close-modal" id="closeModal">
+                <i class="fa fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-content">
+                <label style="border: solid red 0px;">用户名：</label>
+                <input name="pwdUserName" id="pwdUserName" type="text" style="height: 25px;width: 220px;margin-left: 3px;">
+                <div style="margin-top: 15px;display: flex;">
+                    <label style="display: flex;border: solid red 0px;">验证码：</label>
+                    <input name="pwdVeriCode" id="pwdVeriCode" type="text" style="height: 25px;width: 120px;display: flex;margin-left: 6px;" maxlength="6">
+                    <button id="getVeriCodeDiv" name="getVeriCodeDiv" onclick="getVeriCode()" style="display: flex;border: solid red 0px;margin-left: 13px;width: 90px;height: 27px;
+                     justify-content: center;align-items: center;border-radius: 5px;font-size: 13px;background-color: #cccccc;">获取验证码</button>
+                </div>
+                <div style="margin-top: 15px;">
+                    <label>新密码：</label>
+                    <input name="pwdNewPwd" id="pwdNewPwd" type="password" style="height: 25px;width: 220px;margin-left: 3px;">
+                </div>
+                <div style="margin-top: 15px;">
+                    <label>确认密码：</label>
+                    <input name="pwdConfirmPwd" id="pwdConfirmPwd" type="password" style="height: 25px;width: 205px;margin-left: 5px;">
+                </div>
+
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn btn-confirm" id="cancelBtn" onclick="closeModal()">取消</button>
+            <button class="modal-btn btn-confirm" id="confirmBtn" onclick="changePwdOk()">确认</button>
+        </div>
+    </div>
+</div>
+
+
+<th:block th:include="include :: footer"/>
+
+
+<script>
+
+    /**
+     * 校验大屏 SSO 跳转异常及系统登录状态
+     */
+    function validateKickout() {
+        var errorType = getParam("sso_msg");
+
+        // ================= 1. 大屏 SSO 免密登录异常拦截 =================
+        if (errorType) {
+            if (errorType === "not_registered") {
+                var phone = getParam("phone") || "未知";
+                layui.layer.open({
+                    type: 1,
+                    title: false,
+                    closeBtn: 0,
+                    area: ['520px', 'auto'],
+                    skin: 'my-dark-sso-alert',
+                    content: '<div style="padding: 35px 25px 20px 25px; text-align: center; font-size: 14px; line-height: 1.8; letter-spacing: 0.5px;">' +
+                        '<i class="layui-icon layui-icon-notice" style="color:#0082FF; margin-right: 8px; font-size: 18px; vertical-align: middle;"></i>' +
+                        '<span style="vertical-align: middle;">抱歉，手机号 <span style="color:#0082FF; font-weight:bold; font-size: 15px;">' + phone + '</span> 暂未开通客经智数平台使用权限，' +
+                        '如需申请，请联系区客户经营中心 罗静娅：<span style="color:#0082FF; font-weight:bold;">13369656521</span></span>' +
+                        '</div>',
+                    btn: ['我知道了'],
+                    btnAlign: 'c',
+                    yes: function(index){
+                        layui.layer.close(index);
+                        // 清理 URL 里的参数，防止刷新页面再次弹窗
+                        window.history.replaceState(null, null, window.location.pathname);
+                    }
+                });
+            }
+            else if (errorType === "timeout") {
+                layui.layer.msg('免密登录失败：链接已过期', {icon: 2, time: 3000});
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+            else if (errorType === "sign_error") {
+                layui.layer.msg('免密登录失败：安全签名校验不通过', {icon: 2, time: 3000});
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+            else if (errorType === "system_error") {
+                layui.layer.msg('免密登录失败：系统处理异常', {icon: 2, time: 3000});
+                window.history.replaceState(null, null, window.location.pathname);
+            }
+            return; // 处理完 SSO 逻辑直接返回
+        }
+
+        // ================= 2. 原有的多点登录与会话过期拦截 =================
+        if (getParam("abnormalout") == 1) {
+            layer.alert("<font color='red'>您已在别处登录，请您修改密码或重新登录</font>", {
+                    icon: 0,
+                    title: "系统提示"
+                },
+                function (index) {
+                    layer.close(index);
+                });
+        } else if (getParam("sessionout") == 1) {
+            layer.alert("<font color='red'>登录已过期，请重新登录</font>", {
+                    icon: 0,
+                    title: "系统提示"
+                },
+                function (index) {
+                    layer.close(index);
+                });
+        }
+    }
+
+
+    layui.use(['form', 'jquery', 'layer', 'button', 'popup'], function () {
+        let form = layui.form;
+        let $ = layui.jquery;
+        let layer = layui.layer;
+        let button = layui.button;
+        let popup = layui.popup;
+        let captchaPath = "/system/captcha/generate";
+
+        //用户名输入框事件
+        $('#username').on('input', function() {
+            var usernameValue = $(this).val();
+            //从缓存中获取密码
+            var passWordValue = localStorage.getItem(usernameValue);
+            if(passWordValue != null && passWordValue.trim().length >0){
+                $('#password').val(passWordValue);
+                //设置记住密码复选框为选中状态
+                $('#remember-me').attr("checked",true);
+                form.render("checkbox");
+            }else{
+                $('#password').val("");
+            }
+        });
+
+        // 登录
+        form.on('submit(login)', function () {
+            login();
+        });
+
+        /**
+         * 登录后端请求
+         * @returns {boolean}
+         */
+        function login(){
+
+            let btn = button.load({elem: '.login'});
+
+            //var username = $('#username').val();
+            var username = $('#username').val();
+            var password = $('#password').val();
+            var captcha =$('#captcha').val();
+
+            //console.log(username);
+
+            if(username.trim().length ==0){
+                $('.tips-title').text("用户名不能为空").show().delay(2000).fadeOut();
+                $('#username').select();
+                return false;
+            }
+
+            if(password.trim().length ==0){
+                $('.tips-title').text("密码不能为空").show().delay(2000).fadeOut();
+                $('#password').select();
+                return false;
+            }
+
+            if(captcha.trim().length ==0){
+                $('.tips-title').text("验证码不能为空").show().delay(2000).fadeOut();
+                $('#captcha').select();
+                return false;
+            }
+
+            let loader = layer.load();
+
+            var paramObj = {
+                username: username,
+                password: password,
+                captcha: captcha
+            };
+
+            $.ajax({
+                url: '/login',
+                //data: data.field,
+                data: paramObj,
+                type: "post",
+                dataType: 'json',
+                success: function (result) {
+                    //layer.close(loader);
+                    btn.stop(function () {
+                        if (result.success) {
+                            //记住密码
+                            var checkedValue = $('#remember-me').prop('checked');
+                            if(checkedValue){
+                                localStorage.setItem(username, password);
+                            }else{
+                                localStorage.removeItem(username);
+                            }
+
+                            /*popup.success(result.msg, function () {
+                                location.href = "/index";
+                            })*/
+
+                            $('.tips-title').text("登录成功").show().delay(1500).fadeOut();
+                            location.href = "/index";
+
+                        } else {
+                            /*popup.failure(result.msg, function () {
+                                document.getElementById("captchaImage").src = captchaPath + "?" + Math.random();
+                            });*/
+                            $('.tips-title').text(result.msg).show().delay(2500).fadeOut();
+                            document.getElementById("captchaImage").src = captchaPath + "?" + Math.random();
+                            $('#captcha').val("");
+                        }
+                    })
+                },
+                complete: function(xhr, status) { // 请求完成（无论成败）的回调
+                    layer.close(loader);
+                }
+            });
+            return false;
+        }
+
+        $("#captchaImage").click(function () {
+            document.getElementById("captchaImage").src = captchaPath + "?" + Math.random();
+            $('#captcha').val("");
+        })
+
+        setInterval(function () {
+            document.getElementById("captchaImage").src = captchaPath + "?" + Math.random();
+            $('#captcha').val("");
+        }, 60 * 1000);
+
+        validateKickout();
+
+        /**
+         * 回车事件
+         */
+        $(document).keydown(function (event){
+            if(event.keyCode == 13){
+                login();
+            }
+        })
+
+
+        // 倒计时总秒数
+        var COUNT_DOWN_SECONDS = 60;
+        var getCodeBtn = document.getElementById('getVeriCodeDiv');
+        var modalOverlay = $('#modalOverlay');
+        var countdownTimer;
+
+        // 忘记密码
+        form.on('submit(forget-password)', function () {
+
+            $("#pwdUserName").val("");
+            $("#pwdVeriCode").val("");
+            $("#pwdNewPwd").val("");
+            $("#pwdConfirmPwd").val("");
+
+            clearInterval(countdownTimer);
+            // 恢复按钮状态
+            getCodeBtn.disabled = false;
+            getCodeBtn.textContent = `获取验证码`;
+            getCodeBtn.classList.remove('btn-disabled');
+            getCodeBtn.classList.add('bg-primary', 'hover:bg-primary/90');
+
+            COUNT_DOWN_SECONDS = 60;
+
+            modalOverlay.addClass('active');
+            // 阻止页面滚动
+            $('body').css('overflow', 'hidden');
+        });
+
+        // 关闭弹出框
+        window.closeModal = function(){
+            modalOverlay.removeClass('active');
+            // 恢复页面滚动
+            $('body').css('overflow', 'auto');
+        }
+
+
+        //获取验证码
+        window.getVeriCode = function(){
+            var pwdUserName = $("#pwdUserName").val();
+            if(pwdUserName.trim().length ==0){
+                layer.msg('用户名不能为空！', {
+                    icon: 1,
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+
+            var paramObj = {
+                pwdUserName: pwdUserName
+            };
+            var param = JSON.stringify(paramObj);
+            let loading = layer.load();
+
+            $.ajax({
+                url: "/veriCode/sysVeriCode/getSysVeriCode",
+                dataType: 'json',
+                contentType: 'application/json',
+                data: param,
+                type: 'post',
+                success: function (result) {
+                    layer.close(loading);
+                    if (result.retCode =="0") {
+                        //popup.success("验证码发送成功！");
+                        layer.msg('验证码发送成功！', {
+                            icon: 1,  // 1表示成功图标（感叹号对勾）
+                            time: 3000,
+                            skin: 'my-success-msg'
+                        });
+                        // 开始倒计时
+                        startCountdown();
+                    } else {
+                        //popup.failure(result.retMsg);
+                        layer.msg(result.retMsg, {
+                            icon: 1,  // 1表示成功图标（感叹号对勾）
+                            time: 3000,
+                            skin: 'my-success-msg'
+                        });
+                    }
+                }
+                , error: function(xhr, status, error) {
+                    layer.close(loading);
+                    //popup.failure("获取验证码失败，请联系管理员");
+                    layer.msg('获取验证码失败，请联系管理员！', {
+                        icon: 1,  // 1表示成功图标（感叹号对勾）
+                        time: 3000,
+                        skin: 'my-success-msg'
+                    });
+                }
+            })
+
+        }
+
+        // 倒计时函数
+        function startCountdown() {
+            // 保存原始按钮文本和状态
+            const originalText = getCodeBtn.textContent;
+
+            // 禁用按钮
+            getCodeBtn.disabled = true;
+            getCodeBtn.classList.remove('bg-primary', 'hover:bg-primary/90');
+            getCodeBtn.classList.add('btn-disabled');
+
+            let seconds = COUNT_DOWN_SECONDS;
+
+            // 更新按钮文本
+            function updateButtonText() {
+                getCodeBtn.textContent = `重新获取(${seconds}s)`;
+            }
+
+            // 初始更新
+            updateButtonText();
+
+            // 倒计时定时器
+            countdownTimer = setInterval(function() {
+                seconds--;
+                updateButtonText();
+
+                // 倒计时结束
+                if (seconds <= 0) {
+                    clearInterval(countdownTimer);
+                    // 恢复按钮状态
+                    getCodeBtn.disabled = false;
+                    getCodeBtn.textContent = originalText;
+                    getCodeBtn.classList.remove('btn-disabled');
+                    getCodeBtn.classList.add('bg-primary', 'hover:bg-primary/90');
+                }
+            }, 1000);
+        }
+
+        /**
+         * 修改密码确认事件
+         */
+        window.changePwdOk = function(){
+            var pwdUserName = $("#pwdUserName").val().trim();
+            if(pwdUserName.length ==0){
+                //layer.alert("用户名不能为空！");
+                layer.msg('用户名不能为空！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+
+            var pwdVeriCode = $("#pwdVeriCode").val().trim();
+            if(pwdVeriCode.length ==0){
+                //layer.alert("验证码不能为空！");
+                layer.msg('验证码不能为空！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+
+            var pwdNewPwd = $("#pwdNewPwd").val().trim();
+            var pwdConfirmPwd = $("#pwdConfirmPwd").val().trim();
+
+            if(pwdNewPwd.length < 8){
+                //layer.alert("密码长度必须大于等于8位！");
+                layer.msg('密码长度必须大于等于8位！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+            if(!pwdNewPwd.match(/[a-z]/)){
+                //layer.alert("密码必须包含小写字母！");
+                layer.msg('密码必须包含小写字母！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+            if(!pwdNewPwd.match(/[A-Z]/)){
+                //layer.alert("密码必须包含大写字母！");
+                layer.msg('密码必须包含大写字母！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+            if(!pwdNewPwd.match(/[0-9]/)){
+                //layer.alert("密码必须包含数字！");
+                layer.msg('密码必须包含数字！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+            if(!pwdNewPwd.match(/[\W_]/)){
+                //layer.alert("密码必须包含特殊字符！");
+                layer.msg('密码必须包含特殊字符！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+
+            if(pwdNewPwd != pwdConfirmPwd){
+                //layer.alert("两次密码不相等！");
+                layer.msg('两次密码不相等！', {
+                    icon: 1,  // 1表示成功图标（感叹号对勾）
+                    time: 3000,
+                    skin: 'my-success-msg'
+                });
+                return false;
+            }
+
+            var paramObj = {
+                userName: pwdUserName,
+                veriCode:pwdVeriCode,
+                newPwd:pwdNewPwd
+            };
+            var param = JSON.stringify(paramObj);
+            let loading = layer.load();
+
+            $.ajax({
+                url: "/veriCode/sysVeriCode/changePwd",
+                dataType: 'json',
+                contentType: 'application/json',
+                data: param,
+                type: 'post',
+                success: function (result) {
+                    layer.close(loading);
+                    if (result.retCode =="0") {
+                        //popup.success("密码修改成功！");
+                        layer.msg('密码修改成功！', {
+                            icon: 1,  // 1表示成功图标（感叹号对勾）
+                            time: 3000,
+                            skin: 'my-success-msg'
+                        });
+                        modalOverlay.removeClass('active');
+                        // 恢复页面滚动
+                        $('body').css('overflow', 'auto');
+
+                    } else {
+                        //popup.failure(result.retMsg);
+                        layer.msg(result.retMsg, {
+                            icon: 1,  // 1表示成功图标（感叹号对勾）
+                            time: 3000,
+                            skin: 'my-success-msg'
+                        });
+                    }
+                }
+                , error: function(xhr, status, error) {
+                    layer.close(loading);
+                    //popup.failure("密码修改失败，请联系管理员");
+                    layer.msg('密码修改失败，请联系管理员！', {
+                        icon: 1,  // 1表示成功图标（感叹号对勾）
+                        time: 3000,
+                        skin: 'my-success-msg'
+                    });
+                }
+            })
+        }
+    })
+</script>
+
+
+<script>
+    var canvas = document.querySelector('canvas');
+    var ctx = canvas.getContext('2d');
+    var w = window.innerWidth;//获取屏幕宽高
+    var h = window.innerHeight * 2 / 2;
+    canvas.width = w;//将屏幕宽高赋值给canvas
+    canvas.height = h;
+    // canvas.style.cssText += `;width:${w}px;height:${h}px;`;
+    var dots = [];
+    var minScale = 1;//设置圆点的最小缩放
+    var maxScale = 3;//设置圆点的最大缩放
+    var bei = 1;
+    for (var i = 0; i < 200; i += 1) {  //设置白圆点的个数
+        dots.push(new Dot())
+    }
+
+    render = () => {
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(26,94,199,.2)';
+        ctx.fillRect(0, 0, w, h);//描绘底层蓝色背景
+        for (var i = 0; i < dots.length; i += 1) {
+            var dot = dots[i];
+            dot.update();
+            dot.paint();
+
+        }
+        requestAnimationFrame(render)
+    }
+
+    render();
+    function Dot() {
+        this.radius = Math.floor(Math.random() * 3 + 2);//在选一个随机数为圆点半径
+        this.d = Math.random() * 2 * Math.PI;//在0-2π之间随机一个弧度值
+        this.rx = Math.random() * w * (Math.random() > 0.6 ? 2 / 3 : 1 / 4);// 选一个随机数，作为椭圆长轴顶点a的数值,也就是椭圆中心的x轴坐标，此处的x,y,是相对于椭圆圆心为中心点建立的直角坐标系。
+        this.ry = Math.random() * h - h / 2;//选一个随机数作为椭圆短轴顶点b的数值，也就是椭圆中心的y轴坐标，此处的x,y,是相对于椭圆圆心为中心点建立的直角坐标系。这两个值可以根据自已需求来定。
+        this.x = Math.cos(this.d) * this.rx + w / 2;
+        this.y = Math.sin(this.d) * this.ry + h / 2;//根据椭圆x,y求值公式，x=a*cosα，y=a*sinα.求出圆点在椭圆上的x,y轴坐标.后面加w/2,h/2只是为了居中显示。此处的x,y是相对于canvas建立的直角坐标系的，按canvas约定，其中心点（0,0）点在左上角
+        this.z = (Math.pow(Math.pow(this.rx, 2) + Math.pow(this.ry, 2), 0.5) / Math.pow(Math.pow(w / 2, 2) + Math.pow(h / 2, 2), 0.5))//求白色圆点离椭圆中心点的距离，可视为一个点到圆心的距离，用x平方+y平方=c平方求得。此处的x,y,是相对于椭圆圆心为中心点建立的直角坐标系。此处Z值只是一个比值
+        this.scale = (Math.cos(this.d) + 1) * (maxScale - minScale) / 2 + minScale;//圆点的缩放大小,根据余弦函数公式y=cosα.标准的余弦函数最大值和最小值分别为1，-1.这里要自行设置最大值和最小值，所以要进行改写
+        // this.speed = Math.random() * 0.0005 + 0.0005;
+        this.speed = Math.random() * 0.0004 + 0.0004;//圆点运动的速度
+        this.alpha = this.scale / maxScale * 0.3 + 0.1;//圆点运动的透明度
+        this.count = 0;
+        this.paint = () => {
+            ctx.fillStyle = 'rgba(0,130,255,' + this.alpha + ')';
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius * this.scale * this.z, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        this.update = () => {
+            this.count += 0.01;
+            if (Math.floor(this.count) % 12 === 0 && Math.floor(this.count) != 0) {
+                this.d += 0.008;
+                if (this.count > Math.floor(this.count) + 0.5) {
+                    this.d -= 0.008;
+                }
+                //console.log(this.count)
+            }
+
+
+            this.x = Math.sin(this.d) * this.rx + w / 2;
+            this.y = Math.cos(this.d) * this.ry + h / 2;
+            this.d -= this.speed;//通过改变它的弧度值来改变圆点在椭圆中运动
+            this.scale = (Math.cos(this.d) + 1) * (maxScale - minScale) / 2 + minScale;
+            this.alpha = this.scale / maxScale * 0.3 + 0.4;
+        }
+    }
+</script>
+
+<script>
+    if (window != top) {
+        top.location.href = location.href;
+    }
+
+    function getParam(paramName) {
+        var reg = new RegExp("(^|&)" + paramName + "=([^&]*)(&|$)");
+        var r = window.location.search.substr(1).match(reg);
+        if (r != null) return decodeURI(r[2]);
+        return null;
+    }
+</script>
+
+
+</body>
+
+</html>
